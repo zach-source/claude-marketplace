@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
+
+# Local state files (created at runtime)
+*.local.md
+*.local.json
+
+# Logs
+*.log
