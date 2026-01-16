@@ -1,6 +1,6 @@
-# claude-and-then
+# claude-marketplace
 
-A Claude Code plugin that provides a sequential task queue system with support for parallel fork tasks. Tasks are executed automatically, advancing when each task completes.
+Claude Code plugins for enhanced productivity and automation.
 
 ## Installation
 
@@ -9,20 +9,18 @@ Clone or download this repo, then add to your `.claude/plugins.json`:
 ```json
 {
   "plugins": [
-    "/path/to/claude-and-then"
+    "/path/to/claude-marketplace"
   ]
 }
 ```
 
-Or symlink to your `.claude/plugins/` directory:
+---
 
-```bash
-ln -s /path/to/claude-and-then ~/.claude/plugins/and-then
-```
+# And-Then Task Queue
+
+A sequential task queue with parallel fork support. Tasks auto-advance when completed.
 
 ## Usage
-
-### Create a Task Queue
 
 ```bash
 # Sequential tasks
@@ -34,14 +32,14 @@ ln -s /path/to/claude-and-then ~/.claude/plugins/and-then
           --task "Deploy to staging"
 ```
 
-### Task Types
+## Task Types
 
 | Type | Flag | Description |
 |------|------|-------------|
 | **Standard** | `--task` | Sequential task, executed one at a time |
 | **Fork** | `--fork` | Parallel task, spawns multiple subagents concurrently |
 
-### How It Works
+## How It Works
 
 1. The queue is stored in `.claude/and-then-queue.local.md`
 2. Claude works on the current task
@@ -50,7 +48,7 @@ ln -s /path/to/claude-and-then ~/.claude/plugins/and-then
 5. For fork tasks: Claude launches parallel subagents, waits for all to complete
 6. Repeats until all tasks are complete
 
-### Commands
+## Commands
 
 | Command | Description |
 |---------|-------------|
@@ -60,7 +58,7 @@ ln -s /path/to/claude-and-then ~/.claude/plugins/and-then
 | `/and-then-status` | Show queue progress |
 | `/and-then-cancel` | Cancel the queue |
 
-### Signaling Task Completion
+## Signaling Completion
 
 Simply output `<done/>` when each task is complete:
 
@@ -68,28 +66,28 @@ Simply output `<done/>` when each task is complete:
 <done/>
 ```
 
-No custom completion signals required - the system auto-detects completion.
+## Plugin Structure
 
-## State File Format
-
-The queue state is stored in `.claude/and-then-queue.local.md`:
-
-```yaml
----
-active: true
-current_index: 0
-started_at: "2025-01-15T10:30:45Z"
-tasks:
-  - type: standard
-    prompt: "Build the API"
-  - type: fork
-    subtasks:
-      - "Unit tests"
-      - "Integration tests"
-      - "E2E tests"
-  - type: standard
-    prompt: "Deploy to staging"
----
+```
+claude-marketplace/
+├── .claude-plugin/
+│   └── plugin.json          # Plugin manifest
+├── commands/                 # Slash commands
+│   ├── and-then.md
+│   ├── and-then-add.md
+│   ├── and-then-skip.md
+│   ├── and-then-status.md
+│   └── and-then-cancel.md
+├── hooks/
+│   ├── hooks.json           # Hook configuration
+│   └── scripts/
+│       └── and-then-stop-hook.sh
+├── scripts/                  # Utility scripts
+│   ├── setup-and-then.sh
+│   ├── and-then-add.sh
+│   ├── and-then-skip.sh
+│   └── and-then-status.sh
+└── README.md
 ```
 
 ## Examples

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/plugin-schema.json",
+  "name": "and-then",
+  "version": "1.0.0",
+  "description": "Sequential task queue with parallel fork support - auto-advances when tasks complete",
+  "author": {
+    "name": "ztaylor",
+    "url": "https://github.com/zach-source"
+  },
+  "repository": "https://github.com/zach-source/claude-marketplace",
+  "license": "MIT",
+  "keywords": ["task-queue", "automation", "workflow", "parallel", "fork"],
+  "hooks": "./hooks/hooks.json"
+}
