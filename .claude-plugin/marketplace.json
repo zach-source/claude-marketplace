@@ -1,0 +1,23 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "claude-marketplace",
+  "version": "1.0.0",
+  "description": "Community plugins for Claude Code including task queues, workflow automation, and productivity tools",
+  "owner": {
+    "name": "zach-source",
+    "url": "https://github.com/zach-source"
+  },
+  "plugins": [
+    {
+      "name": "and-then",
+      "description": "Sequential task queue with parallel fork support. Auto-advances when tasks complete via <done/> signal.",
+      "version": "1.0.0",
+      "author": {
+        "name": "ztaylor",
+        "url": "https://github.com/zach-source"
+      },
+      "source": "./plugins/and-then",
+      "category": "productivity"
+    }
+  ]
+}
