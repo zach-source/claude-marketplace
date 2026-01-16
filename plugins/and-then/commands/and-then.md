@@ -23,6 +23,9 @@ Execute a series of tasks sequentially, with optional parallel fork tasks. Autom
 /and-then --task "Build API" \
           --fork "Unit tests" "Integration tests" "E2E tests" \
           --task "Deploy to staging"
+
+# Parallel with limited concurrency (2 workers at a time)
+/and-then --fork --workers 2 "Task A" "Task B" "Task C" "Task D"
 ```
 
 ## Task Types
@@ -35,6 +38,13 @@ Parallel tasks that spawn multiple subagents concurrently. All subtasks run simu
 
 ```bash
 --fork "Subtask 1" "Subtask 2" "Subtask 3"
+```
+
+### Fork with Workers (`--fork --workers N`)
+Limit concurrency to N workers at a time. Useful for resource-intensive tasks.
+
+```bash
+--fork --workers 2 "Heavy Task A" "Heavy Task B" "Heavy Task C" "Heavy Task D"
 ```
 
 ## Signaling Completion

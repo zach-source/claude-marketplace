@@ -108,9 +108,27 @@ build_task_prompt() {
         echo "$task_json" | jq -r '.prompt // "No task description"'
     elif [[ "$task_type" == "fork" ]]; then
         # Build a prompt that instructs Claude to launch parallel subagents
-        local subtasks
+        local subtasks workers subtask_count
         subtasks=$(echo "$task_json" | jq -r '.subtasks | join("\n- ")')
-        cat << FORK_PROMPT
+        workers=$(echo "$task_json" | jq -r '.workers // 0')
+        subtask_count=$(echo "$task_json" | jq '.subtasks | length')
+
+        if [[ "$workers" -gt 0 ]] && [[ "$workers" -lt "$subtask_count" ]]; then
+            cat << FORK_PROMPT
+Launch the following tasks using the Task tool with LIMITED CONCURRENCY of $workers workers at a time.
+
+Subtasks to run ($subtask_count total, $workers concurrent):
+- $subtasks
+
+IMPORTANT:
+1. Launch up to $workers Task tool calls at a time (not all at once)
+2. Wait for a batch to complete before starting the next batch
+3. Choose appropriate subagent_type for each task (e.g., "general-purpose", "test-automator", etc.)
+4. Summarize the results from each subagent as they complete
+5. Output <done/> when ALL $subtask_count subtasks have completed successfully
+FORK_PROMPT
+        else
+            cat << FORK_PROMPT
 Launch the following tasks in PARALLEL using the Task tool. Each subtask should run as a separate subagent concurrently.
 
 Subtasks to run in parallel:
@@ -123,8 +141,21 @@ IMPORTANT:
 4. Summarize the results from each subagent
 5. Output <done/> when ALL subtasks have completed successfully
 FORK_PROMPT
+        fi
     else
         echo "Unknown task type: $task_type"
+    fi
+}
+
+# Function to build system message label for fork tasks
+build_fork_label() {
+    local task_json="$1"
+    local workers
+    workers=$(echo "$task_json" | jq -r '.workers // 0')
+    if [[ "$workers" -gt 0 ]]; then
+        echo "[FORK workers=$workers]"
+    else
+        echo "[FORK]"
     fi
 }
 
@@ -149,7 +180,8 @@ if [[ "$TASK_COMPLETE" == true ]]; then
 
     # Build system message for next task
     if [[ "$NEXT_TYPE" == "fork" ]]; then
-        SYSTEM_MSG="🔀 Task $((NEXT_INDEX + 1))/$TASK_COUNT [FORK] | Launch parallel subagents, then <done/> when all complete"
+        FORK_LABEL=$(build_fork_label "$NEXT_TASK_JSON")
+        SYSTEM_MSG="🔀 Task $((NEXT_INDEX + 1))/$TASK_COUNT $FORK_LABEL | Launch parallel subagents, then <done/> when all complete"
     else
         SYSTEM_MSG="📋 Task $((NEXT_INDEX + 1))/$TASK_COUNT | Output <done/> when complete"
     fi
@@ -168,7 +200,8 @@ else
     CURRENT_PROMPT=$(build_task_prompt "$CURRENT_TASK_JSON")
 
     if [[ "$TASK_TYPE" == "fork" ]]; then
-        SYSTEM_MSG="🔀 Task $((CURRENT_INDEX + 1))/$TASK_COUNT [FORK] | Launch parallel subagents, then <done/> when all complete"
+        FORK_LABEL=$(build_fork_label "$CURRENT_TASK_JSON")
+        SYSTEM_MSG="🔀 Task $((CURRENT_INDEX + 1))/$TASK_COUNT $FORK_LABEL | Launch parallel subagents, then <done/> when all complete"
     else
         SYSTEM_MSG="📋 Task $((CURRENT_INDEX + 1))/$TASK_COUNT | Output <done/> when complete"
     fi

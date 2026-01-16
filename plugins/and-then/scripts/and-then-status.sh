@@ -60,20 +60,27 @@ for ((i=0; i<TASK_COUNT; i++)); do
 
     elif [[ "$TASK_TYPE" == "fork" ]]; then
         SUBTASK_COUNT=$(echo "$TASK_JSON" | jq '.subtasks | length')
+        WORKERS=$(echo "$TASK_JSON" | jq -r '.workers // 0')
+
+        if [[ "$WORKERS" -gt 0 ]]; then
+            FORK_LABEL="[FORK workers=${WORKERS}]"
+        else
+            FORK_LABEL="[FORK]"
+        fi
 
         if [[ $i -lt $CURRENT_INDEX ]]; then
             # Completed
-            echo -e "   ${GREEN}✓ $((i + 1)). [FORK] ${SUBTASK_COUNT} parallel subtasks${NC}"
+            echo -e "   ${GREEN}✓ $((i + 1)). ${FORK_LABEL} ${SUBTASK_COUNT} parallel subtasks${NC}"
         elif [[ $i -eq $CURRENT_INDEX ]]; then
             # Current
-            echo -e "   ${YELLOW}→ $((i + 1)). ${CYAN}[FORK]${YELLOW} Parallel subtasks:${NC}"
+            echo -e "   ${YELLOW}→ $((i + 1)). ${CYAN}${FORK_LABEL}${YELLOW} Parallel subtasks:${NC}"
             echo "$TASK_JSON" | jq -r '.subtasks[]' | while read -r subtask; do
                 echo -e "      ${YELLOW}• ${subtask}${NC}"
             done
             echo -e "      ${CYAN}Launch all via Task tool, then <done/>${NC}"
         else
             # Pending
-            echo -e "   ${GRAY}○ $((i + 1)). [FORK] ${SUBTASK_COUNT} parallel subtasks${NC}"
+            echo -e "   ${GRAY}○ $((i + 1)). ${FORK_LABEL} ${SUBTASK_COUNT} parallel subtasks${NC}"
         fi
     fi
 done

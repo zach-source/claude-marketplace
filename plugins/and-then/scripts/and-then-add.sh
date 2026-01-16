@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # and-then-add.sh - Add tasks to an existing and-then queue
-# Usage: and-then-add.sh --task "task1" [--task "task2"] [--fork "sub1" "sub2" ...]
+# Usage: and-then-add.sh --task "task1" [--task "task2"] [--fork [--workers N] "sub1" "sub2" ...]
 
 set -euo pipefail
 
@@ -28,14 +28,23 @@ declare -a NEW_TASKS=()
 # Temporary array for fork subtasks
 declare -a FORK_SUBTASKS=()
 
+# Workers count for current fork (0 = unlimited/all at once)
+FORK_WORKERS=0
+
 # Function to flush fork subtasks as a task object
 flush_fork() {
     if [[ ${#FORK_SUBTASKS[@]} -gt 0 ]]; then
         # Build JSON array of subtasks using jq
         local subtasks_json
         subtasks_json=$(printf '%s\n' "${FORK_SUBTASKS[@]}" | jq -R -s 'split("\n") | map(select(length > 0))')
-        NEW_TASKS+=("{\"type\":\"fork\",\"subtasks\":$subtasks_json}")
+
+        if [[ $FORK_WORKERS -gt 0 ]]; then
+            NEW_TASKS+=("{\"type\":\"fork\",\"workers\":$FORK_WORKERS,\"subtasks\":$subtasks_json}")
+        else
+            NEW_TASKS+=("{\"type\":\"fork\",\"subtasks\":$subtasks_json}")
+        fi
         FORK_SUBTASKS=()
+        FORK_WORKERS=0
     fi
 }
 
@@ -60,6 +69,17 @@ while [[ $# -gt 0 ]]; do
             flush_fork
             shift
 
+            # Check for optional --workers flag
+            if [[ "${1:-}" == "--workers" ]] || [[ "${1:-}" == "-w" ]]; then
+                shift
+                if [[ -z "${1:-}" ]] || ! [[ "$1" =~ ^[0-9]+$ ]]; then
+                    echo -e "${RED}Error: --workers requires a numeric value${NC}" >&2
+                    exit 1
+                fi
+                FORK_WORKERS="$1"
+                shift
+            fi
+
             while [[ $# -gt 0 ]] && [[ ! "$1" =~ ^-- ]]; do
                 FORK_SUBTASKS+=("$1")
                 shift
@@ -71,14 +91,15 @@ while [[ $# -gt 0 ]]; do
             fi
             ;;
         --help|-h)
-            echo "Usage: and-then-add.sh --task \"task1\" [--task \"task2\"] [--fork \"sub1\" \"sub2\" ...]"
+            echo "Usage: and-then-add.sh --task \"task1\" [--task \"task2\"] [--fork [--workers N] \"sub1\" \"sub2\" ...]"
             echo ""
             echo "Add tasks to an existing and-then queue."
             echo ""
             echo "Options:"
-            echo "  --task, -t      Standard task (executed sequentially)"
-            echo "  --fork, -f      Fork task (subtasks run in parallel via subagents)"
-            echo "  --help, -h      Show this help message"
+            echo "  --task, -t           Standard task (executed sequentially)"
+            echo "  --fork, -f           Fork task (subtasks run in parallel via subagents)"
+            echo "  --workers N, -w N    Limit concurrent workers for fork (default: all at once)"
+            echo "  --help, -h           Show this help message"
             exit 0
             ;;
         *)
@@ -128,7 +149,13 @@ for obj in "${NEW_TASKS[@]}"; do
         PROMPT=$(echo "$obj" | jq -r '.prompt // ""')
         echo -e "  + ${PROMPT}"
     elif [[ "$TYPE" == "fork" ]]; then
-        echo -e "  + ${CYAN}[FORK]${NC} Parallel subtasks:"
+        WORKERS=$(echo "$obj" | jq -r '.workers // 0')
+        SUBTASK_COUNT=$(echo "$obj" | jq '.subtasks | length')
+        if [[ "$WORKERS" -gt 0 ]]; then
+            echo -e "  + ${CYAN}[FORK workers=${WORKERS}]${NC} ${SUBTASK_COUNT} parallel subtasks:"
+        else
+            echo -e "  + ${CYAN}[FORK]${NC} ${SUBTASK_COUNT} parallel subtasks:"
+        fi
         echo "$obj" | jq -r '.subtasks[]' | while read -r subtask; do
             echo -e "      • ${subtask}"
         done

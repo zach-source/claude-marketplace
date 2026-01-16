@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # setup-and-then.sh - Creates the and-then task queue state file
-# Usage: setup-and-then.sh --task "task1" [--task "task2"] [--fork "subtask1" "subtask2" ...]
+# Usage: setup-and-then.sh --task "task1" [--task "task2"] [--fork [--workers N] "subtask1" "subtask2" ...]
 
 set -euo pipefail
 
@@ -22,14 +22,23 @@ declare -a TASK_OBJECTS=()
 # Temporary array for fork subtasks
 declare -a FORK_SUBTASKS=()
 
+# Workers count for current fork (0 = unlimited/all at once)
+FORK_WORKERS=0
+
 # Function to flush fork subtasks as a task object
 flush_fork() {
     if [[ ${#FORK_SUBTASKS[@]} -gt 0 ]]; then
         # Build JSON array of subtasks using jq
         local subtasks_json
         subtasks_json=$(printf '%s\n' "${FORK_SUBTASKS[@]}" | jq -R -s 'split("\n") | map(select(length > 0))')
-        TASK_OBJECTS+=("{\"type\":\"fork\",\"subtasks\":$subtasks_json}")
+
+        if [[ $FORK_WORKERS -gt 0 ]]; then
+            TASK_OBJECTS+=("{\"type\":\"fork\",\"workers\":$FORK_WORKERS,\"subtasks\":$subtasks_json}")
+        else
+            TASK_OBJECTS+=("{\"type\":\"fork\",\"subtasks\":$subtasks_json}")
+        fi
         FORK_SUBTASKS=()
+        FORK_WORKERS=0
     fi
 }
 
@@ -56,6 +65,17 @@ while [[ $# -gt 0 ]]; do
             flush_fork
             shift
 
+            # Check for optional --workers flag
+            if [[ "${1:-}" == "--workers" ]] || [[ "${1:-}" == "-w" ]]; then
+                shift
+                if [[ -z "${1:-}" ]] || ! [[ "$1" =~ ^[0-9]+$ ]]; then
+                    echo -e "${RED}Error: --workers requires a numeric value${NC}" >&2
+                    exit 1
+                fi
+                FORK_WORKERS="$1"
+                shift
+            fi
+
             # Collect all following arguments until next flag
             while [[ $# -gt 0 ]] && [[ ! "$1" =~ ^-- ]]; do
                 FORK_SUBTASKS+=("$1")
@@ -68,12 +88,13 @@ while [[ $# -gt 0 ]]; do
             fi
             ;;
         --help|-h)
-            echo "Usage: setup-and-then.sh --task \"task1\" [--task \"task2\"] [--fork \"sub1\" \"sub2\" ...]"
+            echo "Usage: setup-and-then.sh --task \"task1\" [--task \"task2\"] [--fork [--workers N] \"sub1\" \"sub2\" ...]"
             echo ""
             echo "Options:"
-            echo "  --task, -t      Standard task (executed sequentially)"
-            echo "  --fork, -f      Fork task (subtasks run in parallel via subagents)"
-            echo "  --help, -h      Show this help message"
+            echo "  --task, -t           Standard task (executed sequentially)"
+            echo "  --fork, -f           Fork task (subtasks run in parallel via subagents)"
+            echo "  --workers N, -w N    Limit concurrent workers for fork (default: all at once)"
+            echo "  --help, -h           Show this help message"
             echo ""
             echo "Completion: Output <done/> when each task is complete (auto-detected)"
             echo ""
@@ -81,9 +102,15 @@ while [[ $# -gt 0 ]]; do
             echo "  # Sequential tasks"
             echo "  setup-and-then.sh --task \"Build API\" --task \"Write tests\" --task \"Deploy\""
             echo ""
-            echo "  # Mix of sequential and parallel tasks"
+            echo "  # Parallel tasks (all at once)"
+            echo "  setup-and-then.sh --fork \"Unit tests\" \"Integration tests\" \"E2E tests\""
+            echo ""
+            echo "  # Parallel tasks with limited concurrency (2 at a time)"
+            echo "  setup-and-then.sh --fork --workers 2 \"Task A\" \"Task B\" \"Task C\" \"Task D\""
+            echo ""
+            echo "  # Mix of sequential and parallel"
             echo "  setup-and-then.sh --task \"Build API\" \\"
-            echo "                    --fork \"Unit tests\" \"Integration tests\" \"E2E tests\" \\"
+            echo "                    --fork --workers 3 \"Test 1\" \"Test 2\" \"Test 3\" \"Test 4\" \\"
             echo "                    --task \"Deploy to staging\""
             exit 0
             ;;
@@ -156,7 +183,13 @@ for obj in "${TASK_OBJECTS[@]}"; do
         PROMPT=$(echo "$obj" | jq -r '.prompt // ""')
         echo -e "  ${TASK_NUM}. ${PROMPT}"
     elif [[ "$TYPE" == "fork" ]]; then
-        echo -e "  ${TASK_NUM}. ${CYAN}[FORK]${NC} Parallel subtasks:"
+        WORKERS=$(echo "$obj" | jq -r '.workers // 0')
+        SUBTASK_COUNT=$(echo "$obj" | jq '.subtasks | length')
+        if [[ "$WORKERS" -gt 0 ]]; then
+            echo -e "  ${TASK_NUM}. ${CYAN}[FORK workers=${WORKERS}]${NC} ${SUBTASK_COUNT} parallel subtasks:"
+        else
+            echo -e "  ${TASK_NUM}. ${CYAN}[FORK]${NC} ${SUBTASK_COUNT} parallel subtasks:"
+        fi
         echo "$obj" | jq -r '.subtasks[]' | while read -r subtask; do
             echo -e "      • ${subtask}"
         done
