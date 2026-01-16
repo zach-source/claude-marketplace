@@ -12,8 +12,8 @@ Remove the task queue and allow normal session behavior.
 ---
 
 ```bash
-if [[ -f ".claude/and-then-queue.local.md" ]]; then
-    rm ".claude/and-then-queue.local.md"
+if [[ -f ".claude/and-then-queue.json" ]]; then
+    rm ".claude/and-then-queue.json"
     echo "✅ And-then queue cancelled"
 else
     echo "ℹ️  No active and-then queue"

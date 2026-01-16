@@ -10,107 +10,54 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-QUEUE_FILE=".claude/and-then-queue.local.md"
+# State file location (JSON format - no external dependencies)
+QUEUE_FILE=".claude/and-then-queue.json"
 
 if [[ ! -f "$QUEUE_FILE" ]]; then
     echo -e "${RED}Error: No and-then queue active${NC}" >&2
     exit 1
 fi
 
-# Get current state and advance index
-python3 << 'EOF'
-import yaml
-import json
-import sys
+# Parse state file (JSON format)
+STATE_JSON=$(cat "$QUEUE_FILE")
 
-with open(".claude/and-then-queue.local.md", 'r') as f:
-    content = f.read()
+# Validate JSON
+if ! echo "$STATE_JSON" | jq -e '.' >/dev/null 2>&1; then
+    echo -e "${RED}Error: Invalid JSON in state file${NC}" >&2
+    exit 1
+fi
 
-parts = content.split('---')
-data = yaml.safe_load(parts[1])
+# Extract state values
+CURRENT_INDEX=$(echo "$STATE_JSON" | jq -r '.current_index // 0')
+TASK_COUNT=$(echo "$STATE_JSON" | jq '.tasks | length')
 
-current = data.get('current_index', 0)
-tasks = data.get('tasks', [])
-total = len(tasks)
-
-if current >= total - 1:
-    print(json.dumps({'status': 'exhausted', 'current': current, 'total': total}))
-else:
-    # Skip to next
-    data['current_index'] = current + 1
-    output = '---\n'
-    output += yaml.dump(data, default_flow_style=False, sort_keys=False)
-    output += '---\n'
-    with open(".claude/and-then-queue.local.md", 'w') as f:
-        f.write(output)
-
-    next_task = tasks[current + 1]
-    print(json.dumps({
-        'status': 'skipped',
-        'current': current,
-        'total': total,
-        'next_task': next_task
-    }))
-EOF
-RESULT=$?
-
-# Parse the JSON output
-RESULT_JSON=$(python3 << 'EOF'
-import yaml
-import json
-
-with open(".claude/and-then-queue.local.md", 'r') as f:
-    content = f.read()
-
-parts = content.split('---')
-data = yaml.safe_load(parts[1])
-
-current = data.get('current_index', 0)
-tasks = data.get('tasks', [])
-total = len(tasks)
-
-# Already advanced by Python above, so current is now the "next" task
-if current >= total:
-    print(json.dumps({'status': 'exhausted', 'current': current - 1, 'total': total}))
-else:
-    task = tasks[current]
-    print(json.dumps({
-        'status': 'skipped',
-        'skipped_index': current - 1,
-        'current_index': current,
-        'total': total,
-        'task': task
-    }))
-EOF
-)
-
-STATUS=$(echo "$RESULT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))")
-
-if [[ "$STATUS" == "exhausted" ]]; then
-    CURRENT=$(echo "$RESULT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('current',0))")
-    TOTAL=$(echo "$RESULT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('total',0))")
-    echo -e "${YELLOW}⚠️  Already on the last task ($((CURRENT + 1))/${TOTAL})${NC}"
+# Check if we're on the last task
+if [[ $CURRENT_INDEX -ge $((TASK_COUNT - 1)) ]]; then
+    echo -e "${YELLOW}⚠️  Already on the last task ($((CURRENT_INDEX + 1))/${TASK_COUNT})${NC}"
     echo -e "${YELLOW}Cannot skip - use /and-then-cancel to stop the queue${NC}"
-else
-    SKIPPED=$(echo "$RESULT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('skipped_index',0))")
-    CURRENT=$(echo "$RESULT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('current_index',0))")
-    TOTAL=$(echo "$RESULT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('total',0))")
-    TASK_TYPE=$(echo "$RESULT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('task',{}).get('type','standard'))")
+    exit 0
+fi
 
-    echo -e "${GREEN}✓ Skipped task $((SKIPPED + 1)), now on task $((CURRENT + 1))/${TOTAL}${NC}"
+# Calculate next index
+NEXT_INDEX=$((CURRENT_INDEX + 1))
 
-    if [[ "$TASK_TYPE" == "standard" ]]; then
-        PROMPT=$(echo "$RESULT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('task',{}).get('prompt',''))")
-        echo -e "  ${BLUE}Next task:${NC} $PROMPT"
-        echo -e "  ${CYAN}Output <done/> when complete${NC}"
-    elif [[ "$TASK_TYPE" == "fork" ]]; then
-        echo -e "  ${BLUE}Next task:${NC} ${CYAN}[FORK]${NC} Parallel subtasks:"
-        echo "$RESULT_JSON" | python3 -c "
-import sys, json
-task = json.load(sys.stdin).get('task', {})
-for subtask in task.get('subtasks', []):
-    print(f'      • {subtask}')
-"
-        echo -e "  ${CYAN}Launch all via Task tool, then <done/>${NC}"
-    fi
+# Update state file with new index
+echo "$STATE_JSON" | jq ".current_index = $NEXT_INDEX" > "$QUEUE_FILE"
+
+# Get the new current task info
+NEXT_TASK_JSON=$(echo "$STATE_JSON" | jq -c ".tasks[$NEXT_INDEX] // {}")
+TASK_TYPE=$(echo "$NEXT_TASK_JSON" | jq -r '.type // "standard"')
+
+echo -e "${GREEN}✓ Skipped task $((CURRENT_INDEX + 1)), now on task $((NEXT_INDEX + 1))/${TASK_COUNT}${NC}"
+
+if [[ "$TASK_TYPE" == "standard" ]]; then
+    PROMPT=$(echo "$NEXT_TASK_JSON" | jq -r '.prompt // "No prompt"')
+    echo -e "  ${BLUE}Next task:${NC} $PROMPT"
+    echo -e "  ${CYAN}Output <done/> when complete${NC}"
+elif [[ "$TASK_TYPE" == "fork" ]]; then
+    echo -e "  ${BLUE}Next task:${NC} ${CYAN}[FORK]${NC} Parallel subtasks:"
+    echo "$NEXT_TASK_JSON" | jq -r '.subtasks[]' | while read -r subtask; do
+        echo -e "      • ${subtask}"
+    done
+    echo -e "  ${CYAN}Launch all via Task tool, then <done/>${NC}"
 fi
