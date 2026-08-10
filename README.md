@@ -82,6 +82,23 @@ The test counts are identical whether the contract is right or invented, so:
   synthesised payloads, not loaded by Claude Code from this marketplace. The suites prove
   the hooks honour the documented contract; they cannot prove the contract.
 
+That last point applies to every fix here, but the fixes do not all rest on it equally.
+Some correct a **measured fact about the harness** and hold whether or not the docs are
+right; others are **contract-dependent** and would be no-ops, not misbehaviour, if the
+documented contract turned out to be wrong:
+
+| Fix | Bug established by | Fix rests on |
+|-----|--------------------|--------------|
+| and-then `<done/>` never detected | measured — 0 of 3214 transcript lines have top-level `.role` | `last_assistant_message` (documented, unobserved) |
+| smart-lint skipped ~2% of edits | measured — 14 of 628 `tool_response` values are strings | jq robustness only |
+| claude-mon never read its payload | measured — no stdin read; real daemon accepts the new shape | measured |
+| terminal-notifier stdout leak | measured — observed on stdout | contract (stdout is parsed) |
+| checker `2>&1` inversion | measured — stubs show output on stdout | contract (stdout is parsed) |
+| `decision: "approve"` | documented — `"block"` is the only value | contract |
+| vector-memory retrieved nothing | measured — CLI reads `tool`/`arguments`, harness sends `tool_name`/`tool_input` | `additionalContext` (documented) |
+| precompact piped a CLI into the result | documented — `continue:false` halts compaction | contract |
+| inject_project_docs echoed the payload | measured — observed | contract (stdout becomes context) |
+
 ## Contributing
 
 1. Create the plugin under the tree for its harness — `claude/plugins/<name>/`.
