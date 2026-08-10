@@ -25,8 +25,22 @@ Both `nc` sends are redirected to `/dev/null`. `nc`'s stdout is the hook's stdou
 PostToolUse stdout is parsed for hook decisions — a daemon replying with a `decision` or
 `continue` key could otherwise steer the session. Nothing that socket says is for Claude.
 
-`bash test-claude-mon-hook.sh` runs the hook against a stand-in daemon socket: delivery,
-the stdout-leak guard, non-object `tool_input`, and the no-socket no-op.
+### Stdout discipline
+
+The harness parses hook stdout as JSON, so everything here keeps its stdout empty. Two
+things used to break that:
+
+- `notify-hook.sh` and `subagent-stop-hook.sh` emitted `{"decision": "approve", ...}`.
+  `"block"` is the only valid `decision`; omitting it is how you allow the action. The
+  `"approve"` payload failed schema validation on every notification and every subagent
+  completion.
+- `terminal-notifier` writes to **stdout** when it replaces an earlier notification, and
+  only its stderr was redirected — so that line landed in the JSON the harness tried to
+  parse. All notifier calls now redirect both streams.
+
+`bash test-notifications.sh` covers claude-mon delivery against a stand-in daemon socket,
+the daemon-reply leak guard, non-object `tool_input`, the no-socket no-op, and asserts
+every hook in the plugin emits either nothing or parseable JSON with no stray `decision`.
 
 ## Statusline
 

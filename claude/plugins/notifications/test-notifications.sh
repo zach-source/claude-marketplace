@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Checks the claude-mon hook against a stand-in daemon socket: that it reads the
+# Checks the claude-mon hook against a stand-in daemon socket (that it reads the
 # payload from stdin at all, derives the right fields from it, and never lets the
-# daemon's reply reach the hook's stdout.
-# Run: bash claude/plugins/notifications/test-claude-mon-hook.sh
+# daemon's reply reach its stdout), then checks every hook in this plugin keeps
+# its stdout clean.
+# Run: bash claude/plugins/notifications/test-notifications.sh
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -78,5 +79,32 @@ check "malformed payload is quiet" ""  "$out"
 rm -f "$SOCK"
 out=$(echo "$(payload '{"file_path":"/tmp/example.go"}')" | bash "$WORK/hook.sh" 2>/dev/null); rc=$?
 check "no daemon socket exits 0" "0" "$rc"
+
+# --- stdout discipline, every hook in this plugin -------------------------
+#
+# The harness parses hook stdout as JSON. Two ways that has bitten this plugin:
+# a decision value not in the schema ("approve", which only "block" satisfies),
+# and a helper writing to stdout unnoticed - terminal-notifier announces that it
+# replaced an earlier notification, and only its stderr had been redirected.
+#
+# So: each hook must emit either nothing at all, or something jq can parse.
+NOTIFY_PAYLOAD='{"hook_event_name":"Stop","cwd":"/tmp","message":"needs input","last_assistant_message":"done"}'
+for h in notify-hook.sh subagent-stop-hook.sh; do
+  for arg in "" stop notification; do
+    got=$(echo "$NOTIFY_PAYLOAD" | bash "$HERE/hooks/scripts/$h" $arg 2>/dev/null)
+    label="$h ${arg:-<no arg>}"
+    if [[ -z "$got" ]]; then
+      echo "ok   $label emits nothing"
+    elif jq -e . >/dev/null 2>&1 <<<"$got"; then
+      if jq -e 'has("decision") and .decision != "block"' >/dev/null 2>&1 <<<"$got"; then
+        echo "FAIL $label emits a decision that is not \"block\": $got"; fail=1
+      else
+        echo "ok   $label emits valid JSON"
+      fi
+    else
+      echo "FAIL $label emits unparseable stdout: $got"; fail=1
+    fi
+  done
+done
 
 exit $fail

@@ -88,17 +88,20 @@ if [[ "$(uname)" == "Darwin" ]] && command_exists terminal-notifier; then
     fi
   fi
   
-  "${NOTIFIER_CMD[@]}" 2>/dev/null || true
+  # stdout too: terminal-notifier writes to it, and the harness parses hook
+  # stdout as JSON.
+  "${NOTIFIER_CMD[@]}" >/dev/null 2>&1 || true
 
 # macOS fallback with osascript
 elif [[ "$(uname)" == "Darwin" ]] && command_exists osascript; then
-  osascript -e "display notification \"$BODY\" with title \"$TITLE\" sound name \"Glass\"" 2>/dev/null || true
+  osascript -e "display notification \"$BODY\" with title \"$TITLE\" sound name \"Glass\"" >/dev/null 2>&1 || true
 
 # Linux with notify-send
 elif command_exists notify-send; then
-  notify-send -u low "$TITLE" "$BODY" 2>/dev/null || true
+  notify-send -u low "$TITLE" "$BODY" >/dev/null 2>&1 || true
 fi
 
-# Return success (don't block)
-echo '{"decision": "approve", "suppressOutput": true}'
+# No output. "block" is the only valid decision on SubagentStop; "approve" is
+# not in the schema and failed validation on every subagent completion.
+# Omitting decision is how you allow the stop.
 exit 0
