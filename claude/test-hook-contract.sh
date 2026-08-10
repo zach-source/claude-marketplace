@@ -20,7 +20,7 @@ trap 'rm -rf "$STUBS"' EXIT
 # stderr: if a hook forgets to redirect one, this test sees it. claude-vector and
 # nc are stubbed too - without that, a hook would quietly reach the real qdrant or
 # a real socket and the leak would stay hidden.
-for helper in terminal-notifier osascript notify-send zellij nc claude-vector bd; do
+for helper in terminal-notifier osascript notify-send zellij claude-vector bd; do
   cat > "$STUBS/$helper" <<EOF
 #!/usr/bin/env bash
 echo "* $helper chatter on stdout"
@@ -29,6 +29,18 @@ exit 0
 EOF
   chmod +x "$STUBS/$helper"
 done
+
+# nc gets the shape the real claude-mon daemon actually returns, measured by
+# probing it: {"status":"ok"}. That is valid JSON carrying no control key, so it
+# slips past the parseable/decision/envelope assertions - it is caught only by
+# the allowed-keys one below. A stub emitting obvious garbage would have made
+# this test look stronger than it is.
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'echo "{\"status\":\"ok\"}"' \
+  'echo "* nc chatter on stderr" >&2' \
+  'exit 0' > "$STUBS/nc"
+chmod +x "$STUBS/nc"
 
 WORK="$(mktemp -d)"; trap 'rm -rf "$STUBS" "$WORK"' EXIT
 printf 'package main\nfunc main(){}\n' > "$WORK/edited.go"
@@ -78,6 +90,14 @@ while IFS= read -r manifest; do
       # echoed it - which on UserPromptSubmit dumps session_id, cwd and every
       # tool field straight into the conversation. Valid JSON, entirely wrong.
       echo "FAIL $label echoed its input payload back: $(head -c 120 <<<"$out")"
+      fail=1
+    elif [[ -n "$(jq -r 'keys[] | select(. as $k | ["continue","stopReason","suppressOutput","systemMessage","terminalSequence","decision","reason","hookSpecificOutput"] | index($k) | not)' <<<"$out" 2>/dev/null)" ]]; then
+      # Anything outside the documented top-level result fields is not a hook
+      # result - it is some helper's reply that reached stdout. The real
+      # claude-mon daemon answers {"status":"ok"}, which is valid JSON with no
+      # control key and no envelope key, so every assertion above waves it
+      # through. Benign today is not the same as guarded.
+      echo "FAIL $label emitted undocumented result keys ($(jq -r '[keys[] | select(. as $k | ["continue","stopReason","suppressOutput","systemMessage","terminalSequence","decision","reason","hookSpecificOutput"] | index($k) | not)] | join(",")' <<<"$out" 2>/dev/null)): $(head -c 80 <<<"$out")"
       fail=1
     else
       echo "ok   $label emits valid JSON ($(jq -c 'keys | join(",")' <<<"$out" 2>/dev/null))"

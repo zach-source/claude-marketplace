@@ -67,6 +67,21 @@ Or point at a local checkout in `.claude/plugins.json`:
 { "plugins": ["/path/to/claude-marketplace/claude/plugins/code-quality"] }
 ```
 
+## What is measured, and what is not
+
+The test counts are identical whether the contract is right or invented, so:
+
+- **Measured against reality** — transcript structure (no top-level `.role`; 0 of 3214
+  lines), `tool_response` shape distribution (string ~2% of Edit/Write results), the tool
+  inventory (no `MultiEdit`), and the claude-mon daemon payload (a running daemon replies
+  `{"status":"ok"}`).
+- **Documented but not observed live** — `last_assistant_message` on the Stop payload,
+  which and-then's completion detection depends on. The suites synthesise it; transcripts
+  record hook summaries, not hook inputs. Degrades to the pre-fix behaviour if absent.
+- **Never run as installed plugins.** These scripts have been exercised against
+  synthesised payloads, not loaded by Claude Code from this marketplace. The suites prove
+  the hooks honour the documented contract; they cannot prove the contract.
+
 ## Contributing
 
 1. Create the plugin under the tree for its harness — `claude/plugins/<name>/`.
