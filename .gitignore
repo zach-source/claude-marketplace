@@ -12,3 +12,6 @@
 
 # Logs
 *.log
+
+# Per-worktree MCP wiring (generated, machine-specific nix store paths)
+.mcp.json
