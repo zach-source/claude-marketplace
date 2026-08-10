@@ -46,6 +46,14 @@ their own marketplace at `.agents/plugins/marketplace.json`. `subagents` and
 `slash-commands` are not — Codex plugins have no agents or commands component.
 See [codex/README.md](./codex/README.md) for the per-plugin differences.
 
+## Pi extensions
+
+Pi has no plugin format at all — an extension is a single `.ts` module with a
+default export taking an `ExtensionAPI`, loaded from `~/.pi/agent/extensions/`.
+So [`pi/`](./pi) is a flat directory of extensions rather than a plugin tree.
+Seven of the hooks are ported there; the rest are documented as not porting,
+with the reason for each. See [pi/README.md](./pi/README.md).
+
 ## Installation
 
 ```bash
@@ -65,8 +73,9 @@ Or point at a local checkout in `.claude/plugins.json`:
 2. Add `.claude-plugin/plugin.json`.
 3. Register it in `.claude-plugin/marketplace.json` with an explicit relative
    `source`, e.g. `./claude/plugins/<name>`.
-4. Codex and Pi trees keep their own manifests; do not add a second
-   `marketplace.json` under `.claude-plugin/`.
+4. Codex keeps its own manifest at `.agents/plugins/marketplace.json`; do not add
+   a second `marketplace.json` under `.claude-plugin/`. Pi has no manifest —
+   drop the `.ts` file in `pi/extensions/` and document it in `pi/README.md`.
 
 ## License
 
