@@ -48,6 +48,11 @@
               cd src
 
               bash claude/test-hook-contract.sh
+              bash claude/test-bin-pinning.sh
+              bash claude/plugins/code-quality/test-payload-parsing.sh
+              bash claude/plugins/notifications/test-notifications.sh
+              python3 claude/plugins/session-hygiene/test-session-staleness.py
+
               bash codex/test-hook-stdout-contract.sh
               bash codex/test-and-then-stop-hook.sh
               bash codex/test-tool-payload-hooks.sh
