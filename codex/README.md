@@ -215,6 +215,24 @@ behave correctly *given* the documented contract; they cannot prove the contract
 - `hookSpecificOutput.additionalContext` being the only channel to the model on
   `PreToolUse`, and `PLUGIN_ROOT`
 
+Those tiers describe what is known about the harness. How each *fix* is grounded is
+a separate question, and the two come apart in both directions — a bug can be a
+measured fact while its fix rests on documentation, or the reverse:
+
+| Fix | Bug established by | Fix rests on |
+|-----|--------------------|--------------|
+| `smart-lint` type-guarded path pick | measured — reproduced the jq error (exit 5) that discards the fallback | jq semantics only; contract-independent |
+| `claude-mon` reads stdin | measured — it read env vars nothing sets | measured — the real daemon accepted the new record |
+| stdout redirects (notifier, `nc`, `precompact`) | measured — the leaked bytes were reproduced | documented — *that* stdout is parsed as the result |
+| `retrieve_vectors` query + rewrap | measured — read `claude-vector`'s source and ran it | documented — `additionalContext` is the `PreToolUse` channel |
+| dropping `{"decision":"approve"}` | documented — listed under unsupported | documented |
+| `and-then` reads `last_assistant_message` | documented — the transcript route is called unstable | documented, never observed; the weakest link here |
+| `smart-lint` fires on `apply_patch` | documented — `tool_name` reports `apply_patch` | **inferred** — the `*** Update File:` envelope |
+
+Everything in the right-hand column that is not measured degrades to the no-op it
+replaced if the documentation is wrong, rather than to misbehaviour. That is the
+sentence worth reading before trusting any of this in anger.
+
 **Inferred** — neither observed nor documented:
 
 - **The `apply_patch` envelope format.** The docs say only that `tool_input.command`
