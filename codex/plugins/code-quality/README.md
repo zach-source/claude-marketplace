@@ -6,7 +6,7 @@ Formats and lints every file Claude writes, before you see it.
 
 | Event | Script |
 |-------|--------|
-| PostToolUse (`Write\|Edit\|MultiEdit`) | `smart-lint.sh` |
+| PostToolUse (`Write\|Edit\|apply_patch`) | `smart-lint.sh` |
 
 Detects the language from the extension and runs whichever checker is on `PATH`. Missing
 tool = skipped, not failed.

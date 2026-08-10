@@ -8,7 +8,7 @@ Tells you when the agent wants you back.
 |-------|--------|--------------|
 | Stop | `notify-hook.sh stop` | Alert when the agent finishes a turn |
 | SubagentStop | `subagent-stop-hook.sh` | Alert when a subagent completes |
-| PostToolUse (`Write\|Edit\|MultiEdit`) | `claude-mon-hook.sh` | Streams edits to the claude-mon TUI and daemon |
+| PostToolUse (`Write\|Edit\|apply_patch`) | `claude-mon-hook.sh` | Streams edits to the claude-mon TUI and daemon |
 
 `claude-mon-hook.sh` is a no-op if claude-mon is not running.
 

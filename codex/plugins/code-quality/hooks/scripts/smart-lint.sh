@@ -11,15 +11,25 @@ tool_name=$(jq -r '.tool_name' <<<"$payload" 2>/dev/null || echo "")
 
 # Only run on write operations. Codex reports edits as apply_patch - Edit/Write
 # are matcher aliases only and never appear in the payload.
-[[ "$tool_name" =~ ^(apply_patch|Write|Edit|MultiEdit)$ ]] || exit 0
+[[ "$tool_name" =~ ^(apply_patch|Write|Edit)$ ]] || exit 0
 
 # Get the file that was modified. apply_patch carries the whole patch as one
 # string in tool_input.command with no structured path field, so read the paths
-# off the patch envelope. Falls back to the Claude-shaped fields.
-file=$(jq -r '.tool_response.filePath // .tool_input.file_path // empty' <<<"$payload" 2>/dev/null || echo "")
+# off the patch envelope. Falls back to the structured fields.
+#
+# Every access is type-guarded. tool_response is documented only as "tool-specific
+# output" and is not always an object; indexing a string raises a jq error that
+# aborts the whole expression, taking the `//` fallbacks down with it - which is
+# how the correct path gets thrown away while the hook still exits 0.
+file=$(jq -r '
+  [ (.tool_response? | objects | .filePath?),
+    (.tool_input?    | objects | .file_path?) ]
+  | map(select(type == "string" and . != ""))
+  | first // ""
+' <<<"$payload" 2>/dev/null || echo "")
 
 if [[ -z "$file" ]]; then
-  patch=$(jq -r '.tool_input.command // empty' <<<"$payload" 2>/dev/null || echo "")
+  patch=$(jq -r '.tool_input? | objects | .command? | strings // ""' <<<"$payload" 2>/dev/null || echo "")
   # *** Add File: p / *** Update File: p / *** Move to: p - lint the last one touched.
   file=$(grep -oE '^\*\*\* (Add|Update|Move to) File: .+$|^\*\*\* Move to: .+$' <<<"$patch" 2>/dev/null \
          | sed -E 's/^\*\*\* [A-Za-z ]+: //' | tail -1)

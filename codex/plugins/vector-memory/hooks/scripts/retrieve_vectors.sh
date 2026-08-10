@@ -22,11 +22,11 @@ payload="$(cat)"
 # First non-empty field that reads like intent. Order matters: an explicit
 # prompt/query beats a command string. Codex routes shell and edits through
 # tool_input.command; prompt/query/description cover agent and MCP tools.
+# `| objects` guards the case where tool_input is not a map at all - indexing a
+# string is a jq error that would abort the pick before any fallback runs.
 query="$(jq -r '
-  [ .tool_input.prompt,
-    .tool_input.query,
-    .tool_input.description,
-    .tool_input.command ]
+  (.tool_input? | objects) as $in
+  | [ $in.prompt?, $in.query?, $in.description?, $in.command? ]
   | map(select(type == "string" and . != ""))
   | first // ""
 ' <<<"$payload" 2>/dev/null)"

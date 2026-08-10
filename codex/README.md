@@ -75,9 +75,37 @@ because it fails quietly rather than loudly:
   edited path off the `*** Update File:` envelope, keeping `.tool_input.file_path`
   as a fallback.
 - Shell is **`Bash`** (covering `exec_command`), subagents are **`Agent`**, and MCP
-  tools are namespaced `mcp__<server>__<tool>`. `Read`, `Grep`, `Glob` and `Task`
-  do not exist, so `vector-memory`'s matcher is
-  `Bash|Edit|Write|apply_patch|Agent`.
+  tools are namespaced `mcp__<server>__<tool>`. `Read`, `Grep`, `Glob`, `Task` and
+  `MultiEdit` do not exist, so `vector-memory`'s matcher is
+  `Bash|Edit|Write|apply_patch|Agent` and the edit matchers are
+  `Write|Edit|apply_patch`.
+
+## Reading payload fields
+
+`tool_input` and `tool_response` are documented only as "tool-specific" — their
+shape is not guaranteed, and `tool_response` is measurably not always an object.
+This matters more than it looks, because **indexing a non-object is a jq error
+that aborts the whole expression before any `//` fallback runs**. The classic
+shape is:
+
+```jq
+.tool_response.filePath // .tool_input.file_path // empty   # throws away the fallback
+```
+
+When `tool_response` is a string, that raises rather than falling through, so the
+correct path sitting in `tool_input` is discarded and the hook exits 0 having done
+nothing. Guard every access by type instead:
+
+```jq
+[ (.tool_response? | objects | .filePath?),
+  (.tool_input?    | objects | .file_path?) ]
+| map(select(type == "string" and . != "")) | first // ""
+```
+
+Hooks also receive their payload **on stdin as JSON**. There is no environment
+variable carrying it — `claude-mon-hook.sh` read `$TOOL_INPUT`/`$TOOL_NAME` from
+the environment, which nothing sets, so it streamed empty records and never
+resolved a path.
 
 Not mirrored: `slash-commands` and `subagents`. Codex plugins have no commands or
 agents component, and both plugins are nothing but those.

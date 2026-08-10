@@ -1,6 +1,16 @@
 #!/bin/bash
 # claude-mon PostToolUse hook
 # Sends tool edits to both the TUI and daemon for real-time display and persistence
+#
+# The hook payload arrives as JSON on stdin. This script used to read $TOOL_INPUT
+# and $TOOL_NAME from the environment, which no harness sets - both were always
+# empty, so the TUI got an empty line and FILE_PATH never resolved. Every access
+# below is type-guarded: tool_input is not guaranteed to be a map.
+
+HOOK_INPUT="$(cat)"
+TOOL_NAME="$(jq -r '.tool_name? // "" | strings' <<<"$HOOK_INPUT" 2>/dev/null)"
+TOOL_INPUT="$(jq -c '.tool_input? | objects // {}' <<<"$HOOK_INPUT" 2>/dev/null)"
+[[ -z "$TOOL_INPUT" ]] && TOOL_INPUT='{}'
 
 # Get the current directory and resolve to absolute path
 CWD="$(cd "$(pwd)" && pwd)"
@@ -27,13 +37,14 @@ DAEMON_SOCKET="/tmp/claude-mon-daemon.sock"
 
 # Send to TUI if socket exists (raw TOOL_INPUT)
 if [[ -S "$TUI_SOCKET" ]]; then
-    echo "$TOOL_INPUT" | nc -U "$TUI_SOCKET" &
+    echo "$TOOL_INPUT" | nc -U "$TUI_SOCKET" >/dev/null 2>&1 &
 fi
 
 # Send to daemon if socket exists (formatted payload)
 if [[ -S "$DAEMON_SOCKET" ]] && command -v jq &>/dev/null; then
     # Parse tool input
     TOOL_NAME="${TOOL_NAME:-unknown}"
+    # shellcheck disable=SC2016 # TOOL_INPUT is already narrowed to an object above
     FILE_PATH=$(echo "$TOOL_INPUT" | jq -r '.file_path // .path // empty' 2>/dev/null)
     # Codex reports edits as apply_patch, whose tool_input is just the patch text
     # in .command - no structured path field. Read it off the patch envelope.
@@ -87,6 +98,6 @@ if [[ -S "$DAEMON_SOCKET" ]] && command -v jq &>/dev/null; then
                 line_count: $line_count
             }')
 
-        echo "$PAYLOAD" | nc -U "$DAEMON_SOCKET" &
+        echo "$PAYLOAD" | nc -U "$DAEMON_SOCKET" >/dev/null 2>&1 &
     fi
 fi

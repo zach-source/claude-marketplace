@@ -7,7 +7,7 @@ Remembers what compaction throws away.
 | Event | Script | What it does |
 |-------|--------|--------------|
 | PreCompact | `precompact_vectorize.sh` | Vectorizes the transcript into qdrant before it is compacted away |
-| PreToolUse (`Task\|Write\|Edit\|MultiEdit\|Read\|Grep\|Glob`) | `retrieve_vectors.sh` | Pulls relevant prior-session context back out |
+| PreToolUse (`Bash\|Edit\|Write\|apply_patch\|Agent`) | `retrieve_vectors.sh` | Pulls relevant prior-session context back out |
 
 Both are thin wrappers over the `claude-vector` CLI. `hooks/scripts/qdrant_utils.py` holds
 the collection/embedding helpers.

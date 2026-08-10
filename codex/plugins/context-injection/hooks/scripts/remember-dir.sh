@@ -6,8 +6,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/common-helpers.sh"
 
 payload="$(cat)"
-[[ "$(jq -r '.tool_name' <<<"$payload")" != Bash ]] && exit 0
-cmd=$(jq -r '.tool_input.command // empty' <<<"$payload")
+[[ "$(jq -r '.tool_name? // "" | strings' <<<"$payload" 2>/dev/null)" != Bash ]] && exit 0
+# `| objects` guards a non-map tool_input; indexing a string aborts the expression.
+cmd=$(jq -r '.tool_input? | objects | .command? | strings // ""' <<<"$payload" 2>/dev/null)
 
 # First, try to extract session ID if user runs 'status' command
 if [[ "$cmd" == "status" ]] || [[ "$cmd" =~ ^[[:space:]]*status[[:space:]]*$ ]]; then

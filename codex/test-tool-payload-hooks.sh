@@ -74,10 +74,67 @@ out=$(jq -nc '{hook_event_name:"PostToolUse",tool_name:"apply_patch",
       | bash "$LINT" 2>&1)
 check_empty "missing file is ignored" "$out"
 
-# The Claude-shaped payload must keep working - the fallback is still there.
+# The structured payload must keep working - the fallback is still there.
 out=$(jq -nc --arg f "$WORK/demo.py" \
         '{hook_event_name:"PostToolUse",tool_name:"Write",tool_input:{file_path:$f}}' \
       | CLAUDE_HOOKS_DEBUG=1 bash "$LINT" 2>&1)
 check "file_path payload still works" "$WORK/demo.py" "$out"
+
+# tool_response is only "tool-specific output" - it is not always a map. Indexing
+# a string is a jq error that kills the whole pick, throwing away the correct
+# path sitting in the tool_input fallback. Python here on purpose: go vet fails
+# on any file outside a module, so a .go control exits 2 for unrelated reasons.
+for shape in '"a plain string"' '["an","array"]' 'null' '42'; do
+  out=$(jq -nc --arg f "$WORK/demo.py" --argjson r "$shape" \
+          '{hook_event_name:"PostToolUse",tool_name:"Write",
+            tool_response:$r,tool_input:{file_path:$f}}' \
+        | CLAUDE_HOOKS_DEBUG=1 bash "$LINT" 2>&1)
+  check "tool_response as $shape falls back to tool_input" "$WORK/demo.py" "$out"
+done
+
+# Neither field usable: stay quiet rather than error.
+out=$(jq -nc '{hook_event_name:"PostToolUse",tool_name:"Write",
+               tool_response:"str",tool_input:"also a string"}' \
+      | bash "$LINT" 2>&1)
+check_empty "unusable payload stays silent" "$out"
+
+# A non-map tool_input must not break query extraction either.
+check_empty "retrieve survives non-map tool_input" \
+  "$(retrieve '{"tool_name":"Bash","tool_input":"a string"}')"
+
+# ----------------------------------------------------------------- claude-mon
+# This hook read $TOOL_INPUT/$TOOL_NAME from the environment, which no harness
+# sets, so it streamed empty lines and never resolved a path. It reads the
+# payload now; with no claude-mon socket it must still exit cleanly.
+MON=codex/plugins/notifications/hooks/scripts/claude-mon-hook.sh
+out=$(jq -nc --arg p "$(patch_for "$WORK/demo.py")" \
+        '{hook_event_name:"PostToolUse",tool_name:"apply_patch",tool_input:{command:$p}}' \
+      | bash "$MON" 2>/dev/null)
+rc=$?
+check "claude-mon exits 0" "0" "$rc"
+
+# Whether a claude-mon socket exists is a property of the machine, not the hook,
+# so assert what actually matters: nothing it writes may be read back as a hook
+# decision. A daemon reply leaking onto stdout would be exactly that.
+if [[ -z "$out" ]]; then
+  echo "ok   claude-mon writes nothing to stdout"
+elif jq -e 'has("decision") or has("continue") or has("hookSpecificOutput")' <<<"$out" >/dev/null 2>&1; then
+  echo "FAIL claude-mon emitted hook-control fields: $out"; fail=1
+else
+  echo "FAIL claude-mon wrote stray stdout: $out"; fail=1
+fi
+
+out=$(echo 'not json' | bash "$MON" 2>/dev/null); rc=$?
+check "claude-mon survives malformed payload" "0" "$rc"
+
+# It must take tool_name/tool_input from the payload, not from the environment,
+# which is where they used to come from and were never set.
+if grep -qE '^HOOK_INPUT="\$\(cat\)"' "$MON" \
+   && grep -qE '^TOOL_NAME=.*jq.*tool_name' "$MON" \
+   && grep -qE '^TOOL_INPUT=.*jq.*tool_input' "$MON"; then
+  echo "ok   claude-mon sources tool fields from the payload"
+else
+  echo "FAIL claude-mon sources tool fields from the payload"; fail=1
+fi
 
 exit $fail
