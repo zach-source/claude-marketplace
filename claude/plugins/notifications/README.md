@@ -62,3 +62,8 @@ it. Two options in `statusline/`:
 ## Requirements
 
 `jq`. macOS uses `osascript` for desktop notifications; tmux alerts need `tmux`.
+
+The daemon payload shape is confirmed against a running claude-mon, not only a stand-in
+socket: it replies `{"status":"ok"}`. That reply is also what would land on the hook's
+stdout without the redirect — benign today, and benign is not the same as guarded, which
+is why the redirect rather than the contract assertion is what protects it.

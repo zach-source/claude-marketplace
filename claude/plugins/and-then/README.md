@@ -47,6 +47,13 @@ role/type field names it exposes are not a stable interface.
 `bash test-stop-hook.sh` covers completion detection, advance/exhaust, fork prompts and
 the `stop_hook_active` loop guard.
 
+**Open caveat.** `last_assistant_message` is taken from the documentation, which names it
+explicitly for Stop and SubagentStop, but it has not been observed in a captured live Stop
+payload — the tests synthesise it, and transcripts record only hook summaries, not hook
+inputs. If the field were ever absent, the hook warns on stderr and re-feeds the current
+task, bounded by the `stop_hook_active` guard: it degrades to the pre-fix behaviour rather
+than misbehaving. Everything else here is measured against real transcripts.
+
 ## Examples
 
 ### Parallel Testing Pipeline
