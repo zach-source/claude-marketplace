@@ -24,12 +24,9 @@ if [[ ! -f "$QUEUE_FILE" ]]; then
     exit 0
 fi
 
-# Get transcript path from hook input
-TRANSCRIPT_PATH=$(echo "$HOOK_INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || echo "")
-
-if [[ -z "$TRANSCRIPT_PATH" ]] || [[ ! -f "$TRANSCRIPT_PATH" ]]; then
-    echo "⚠️  And-then queue: No transcript found, allowing exit" >&2
-    rm -f "$QUEUE_FILE"
+# Guard against looping: if we already blocked once and Claude is still trying to
+# stop, let it. Without this, an unreadable completion signal re-feeds forever.
+if [[ "$(echo "$HOOK_INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null)" == "true" ]]; then
     exit 0
 fi
 
@@ -66,26 +63,18 @@ fi
 CURRENT_TASK_JSON=$(echo "$TASKS_JSON" | jq -c ".[$CURRENT_INDEX] // {}")
 TASK_TYPE=$(echo "$CURRENT_TASK_JSON" | jq -r '.type // "standard"')
 
-# Extract last assistant message from transcript
-# Transcript is JSONL format (one JSON object per line)
-LAST_OUTPUT=""
-while IFS= read -r line; do
-    ROLE=$(echo "$line" | jq -r '.role // empty' 2>/dev/null || echo "")
-    if [[ "$ROLE" == "assistant" ]]; then
-        # Extract text content from message
-        TEXT=$(echo "$line" | jq -r '
-            .message.content[]? |
-            select(.type == "text") |
-            .text // empty
-        ' 2>/dev/null | head -1)
-        if [[ -n "$TEXT" ]]; then
-            LAST_OUTPUT="$TEXT"
-        fi
-    fi
-done < <(tac "$TRANSCRIPT_PATH" 2>/dev/null | head -20)
+# Final assistant text for this turn, straight off the Stop payload.
+#
+# This used to tac the transcript looking for a top-level `.role == "assistant"`.
+# Two things wrong with that: Claude Code puts the role at `.message.role` and the
+# entry kind at `.type`, so the match never fired and no task ever completed; and
+# the transcript is written asynchronously, so at Stop time it may not contain the
+# current turn yet - a race we would lose exactly when it matters. The docs say to
+# use last_assistant_message on Stop/SubagentStop for precisely this reason.
+LAST_OUTPUT=$(echo "$HOOK_INPUT" | jq -r '.last_assistant_message // empty' 2>/dev/null || echo "")
 
 if [[ -z "$LAST_OUTPUT" ]]; then
-    echo "⚠️  And-then queue: No assistant output found" >&2
+    echo "⚠️  And-then queue: no last_assistant_message on the Stop payload" >&2
 fi
 
 # Check for completion signal: <done/> or <done></done>

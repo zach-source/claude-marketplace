@@ -33,11 +33,19 @@ Sequential task queue with parallel fork support for Claude Code.
 
 ## How It Works
 
-1. Queue stored in `.claude/and-then-queue.local.md`
+1. Queue stored in `.claude/and-then-queue.json`
 2. Work on current task
 3. Output `<done/>` when complete
 4. Stop hook advances to next task
 5. For forks: launch parallel subagents, wait for all, then `<done/>`
+
+The Stop hook reads the completion signal from `last_assistant_message` on the hook
+payload, not from the transcript. The transcript is written asynchronously and may not
+contain the current turn yet when the hook fires — reading it there is a race, and the
+role/type field names it exposes are not a stable interface.
+
+`bash test-stop-hook.sh` covers completion detection, advance/exhaust, fork prompts and
+the `stop_hook_active` loop guard.
 
 ## Examples
 
