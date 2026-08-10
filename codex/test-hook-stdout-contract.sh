@@ -27,6 +27,20 @@ EOF
   chmod +x "$STUB/$cmd"
 done
 
+# Failing checkers, chatty on both streams. A checker only writes when it finds
+# something, so a clean fixture proves nothing: these always fail. This is what
+# catches `checker 2>&1`, which merges diagnostics INTO stdout - it reads like
+# silencing and is its exact opposite. The correct form is `checker >&2`.
+for cmd in gofmt go black flake8 prettier rustfmt nixfmt yq; do
+  cat > "$STUB/$cmd" <<EOF
+#!/usr/bin/env bash
+echo "$cmd: would reformat /some/file - diagnostics on stdout"
+echo "$cmd: diagnostics on stderr" >&2
+exit 1
+EOF
+  chmod +x "$STUB/$cmd"
+done
+
 fail=0
 mkdir -p "$WORK/.claude"
 printf 'x = 1\n' > "$WORK/demo.py"
@@ -76,6 +90,21 @@ assert_channel() {
   decision=$(jq -r 'if type == "object" then (.decision // "") else "" end' <<<"$out" 2>/dev/null)
   if [[ -n "$decision" && "$decision" != "block" ]]; then
     echo "FAIL $label emitted invalid decision '$decision' (only \"block\" is valid)"
+    fail=1
+    return
+  fi
+  # A hook is not a filter - the payload is not piped through it. Getting the
+  # input envelope back means the script rewrote and echoed it, which on
+  # UserPromptSubmit dumps session_id and cwd straight into the conversation.
+  # This is valid JSON with no bad control keys, so the checks above miss it.
+  local echoed
+  echoed=$(jq -r 'if type == "object"
+                  then ([ "session_id","transcript_path","tool_input","tool_response",
+                          "hook_event_name","prompt","cwd" ]
+                        | map(select(. as $k | $in | has($k))) | join(", "))
+                  else "" end' --argjson in "$out" <<<"$out" 2>/dev/null)
+  if [[ -n "$echoed" ]]; then
+    echo "FAIL $label echoed the input envelope back ($echoed)"
     fail=1
     return
   fi

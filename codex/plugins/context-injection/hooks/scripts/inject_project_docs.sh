@@ -14,8 +14,9 @@ PYTHON_SCRIPT="${SCRIPT_DIR}/inject_project_docs.py"
 # Check if the Python script exists
 if [[ ! -f "${PYTHON_SCRIPT}" ]]; then
     echo "[ERROR] Python script not found: ${PYTHON_SCRIPT}" >&2
-    # Pass through input unchanged if script is missing
-    cat
+    # Say nothing. `cat` here would echo the payload onto stdout, which on
+    # UserPromptSubmit becomes context - dumping the whole envelope into the
+    # conversation. A hook is not a filter.
     exit 0
 fi
 

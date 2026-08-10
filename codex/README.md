@@ -123,6 +123,18 @@ helper — `>/dev/null 2>&1`, not `2>/dev/null`. `terminal-notifier` writes
 `nc` hands back whatever a daemon replies, either of which corrupts the JSON or,
 worse, could be read as a decision. `2>/dev/null` looks like silencing and is not.
 
+The inverse mistake is `checker 2>&1`, which *merges* a linter's diagnostics into
+stdout rather than suppressing them. Send them the other way, `checker >&2`. The
+go, black, rustfmt and nixfmt branches of `smart-lint.sh` all had this.
+
+**A hook is not a filter.** The payload is not piped through it, so there is no
+reason to echo it back. `inject_project_docs.py` rewrote `payload["prompt"]` and
+printed the whole envelope, which on `UserPromptSubmit` — where stdout *becomes*
+context — dumped `session_id`, `cwd` and every other field into the conversation
+on every prompt, while the documents themselves reached the model only
+incidentally, inside a `prompt` key nothing reads back. Emit
+`hookSpecificOutput.additionalContext`, or nothing.
+
 Not mirrored: `slash-commands` and `subagents`. Codex plugins have no commands or
 agents component, and both plugins are nothing but those.
 
@@ -141,10 +153,18 @@ bash codex/test-hook-stdout-contract.sh  # every hook's stdout stays a valid res
 
 `test-hook-stdout-contract.sh` discovers hooks from the `hooks.json` files rather
 than a hardcoded list, so it covers new hooks automatically. It runs each one
-against stub helpers that are deliberately noisy on both streams, and asserts the
-general property — emit nothing, or parseable JSON with no `decision` other than
-`block`. That contract is worth more than a test per bug: it caught the
-`PreCompact` leak in a plugin nobody was looking at.
+against stub helpers that are deliberately noisy on both streams — including
+checkers that always fail, since a checker only writes when it finds something and
+a clean fixture proves nothing. It asserts three things about stdout:
+
+1. **parseable** — catches helper chatter and `checker 2>&1`.
+2. **no unmeant control keys** — no `decision` other than `block`.
+3. **no input-envelope keys** at top level (`session_id`, `cwd`, `tool_input`, …)
+   — catches a hook written as a filter. This one is valid JSON with no bad
+   control keys, so the first two miss it entirely.
+
+That contract is worth more than a test per bug: it caught the `PreCompact` leak
+in a plugin nobody was looking at.
 
 `validate-plugins.py` checks that every manifest parses, carries the required
 `name`/`version`/`description`, uses a kebab-case name matching its directory,
