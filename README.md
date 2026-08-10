@@ -1,57 +1,65 @@
 # claude-marketplace
 
-Community plugins for Claude Code.
-
-## Plugins
-
-| Plugin | Category | Description |
-|--------|----------|-------------|
-| [and-then](./plugins/and-then) | productivity | Sequential task queue with parallel fork support |
-
-## Installation
-
-### Install specific plugin
-
-```bash
-# From Claude Code
-/plugin install and-then@zach-source/claude-marketplace
-```
-
-### Install from source
-
-Clone and add to your `.claude/plugins.json`:
-
-```json
-{
-  "plugins": [
-    "/path/to/claude-marketplace/plugins/and-then"
-  ]
-}
-```
-
-## Structure
+Plugins for AI coding harnesses. One top-level tree per harness.
 
 ```
 claude-marketplace/
 ├── .claude-plugin/
-│   └── marketplace.json      # Plugin directory
-├── plugins/
-│   └── and-then/             # Task queue plugin
-│       ├── .claude-plugin/
-│       │   └── plugin.json
-│       ├── commands/
-│       ├── hooks/
-│       ├── scripts/
-│       └── README.md
-└── README.md
+│   └── marketplace.json     # Claude Code marketplace (must live at this exact path)
+├── claude/plugins/          # Claude Code plugins
+├── codex/plugins/           # Codex plugins (.agents/plugins/marketplace.json)
+└── pi/                      # Pi extensions (plain .ts, no manifest)
+```
+
+Each Claude plugin follows the standard layout:
+
+```
+claude/plugins/<name>/
+├── .claude-plugin/plugin.json
+├── commands/  agents/  skills/
+├── hooks/hooks.json + hooks/scripts/
+└── scripts/
+```
+
+Plugins vendor everything they need. Nothing is shared across plugin or harness
+boundaries — `common-helpers.sh` is duplicated on purpose so each plugin installs
+standalone.
+
+## Claude plugins
+
+| Plugin | Category | Description |
+|--------|----------|-------------|
+| [and-then](./claude/plugins/and-then) | productivity | Sequential task queue with parallel fork support |
+| [context-injection](./claude/plugins/context-injection) | context | Project docs, working context (k8s/aws/env), context7 hints, cwd memory |
+| [session-hygiene](./claude/plugins/session-hygiene) | productivity | Stale prompt-cache guard, MCP config sync |
+| [code-quality](./claude/plugins/code-quality) | quality | Format/lint every file Claude writes |
+| [notifications](./claude/plugins/notifications) | notifications | Desktop/tmux alerts, claude-mon stream, statusline |
+| [vector-memory](./claude/plugins/vector-memory) | memory | Qdrant vectorization on precompact, retrieval on tool use |
+| [subagents](./claude/plugins/subagents) | agents | 80 specialized subagents |
+| [slash-commands](./claude/plugins/slash-commands) | productivity | 18 slash commands |
+| [workflow-skills](./claude/plugins/workflow-skills) | workflow | granted, 1password, herdr, herdr-claude-loop |
+
+## Installation
+
+```bash
+/plugin marketplace add zach-source/claude-marketplace
+/plugin install code-quality@claude-marketplace
+```
+
+Or point at a local checkout in `.claude/plugins.json`:
+
+```json
+{ "plugins": ["/path/to/claude-marketplace/claude/plugins/code-quality"] }
 ```
 
 ## Contributing
 
-1. Create plugin in `plugins/your-plugin/`
-2. Add `.claude-plugin/plugin.json` manifest
-3. Add entry to `.claude-plugin/marketplace.json`
-4. Submit PR
+1. Create the plugin under the tree for its harness — `claude/plugins/<name>/`.
+2. Add `.claude-plugin/plugin.json`.
+3. Register it in `.claude-plugin/marketplace.json` with an explicit relative
+   `source`, e.g. `./claude/plugins/<name>`.
+4. Codex and Pi trees keep their own manifests; do not add a second
+   `marketplace.json` under `.claude-plugin/`.
 
 ## License
 
