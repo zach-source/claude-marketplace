@@ -9,11 +9,22 @@ source "${SCRIPT_DIR}/common-helpers.sh"
 payload="$(cat)"
 tool_name=$(jq -r '.tool_name' <<<"$payload" 2>/dev/null || echo "")
 
-# Only run on write operations
-[[ "$tool_name" =~ ^(Write|Edit|MultiEdit)$ ]] || exit 0
+# Only run on write operations. Codex reports edits as apply_patch - Edit/Write
+# are matcher aliases only and never appear in the payload.
+[[ "$tool_name" =~ ^(apply_patch|Write|Edit|MultiEdit)$ ]] || exit 0
 
-# Get the file that was modified
+# Get the file that was modified. apply_patch carries the whole patch as one
+# string in tool_input.command with no structured path field, so read the paths
+# off the patch envelope. Falls back to the Claude-shaped fields.
 file=$(jq -r '.tool_response.filePath // .tool_input.file_path // empty' <<<"$payload" 2>/dev/null || echo "")
+
+if [[ -z "$file" ]]; then
+  patch=$(jq -r '.tool_input.command // empty' <<<"$payload" 2>/dev/null || echo "")
+  # *** Add File: p / *** Update File: p / *** Move to: p - lint the last one touched.
+  file=$(grep -oE '^\*\*\* (Add|Update|Move to) File: .+$|^\*\*\* Move to: .+$' <<<"$patch" 2>/dev/null \
+         | sed -E 's/^\*\*\* [A-Za-z ]+: //' | tail -1)
+fi
+
 [[ -z "$file" || ! -f "$file" ]] && exit 0
 
 # Configuration from environment

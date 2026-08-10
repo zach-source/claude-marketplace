@@ -35,6 +35,13 @@ if [[ -S "$DAEMON_SOCKET" ]] && command -v jq &>/dev/null; then
     # Parse tool input
     TOOL_NAME="${TOOL_NAME:-unknown}"
     FILE_PATH=$(echo "$TOOL_INPUT" | jq -r '.file_path // .path // empty' 2>/dev/null)
+    # Codex reports edits as apply_patch, whose tool_input is just the patch text
+    # in .command - no structured path field. Read it off the patch envelope.
+    if [[ -z "$FILE_PATH" ]]; then
+        FILE_PATH=$(echo "$TOOL_INPUT" | jq -r '.command // empty' 2>/dev/null \
+            | grep -oE '^\*\*\* (Add|Update|Move to) File: .+$' \
+            | sed -E 's/^\*\*\* [A-Za-z ]+: //' | tail -1)
+    fi
     OLD_STRING=$(echo "$TOOL_INPUT" | jq -r '.old_string // empty' 2>/dev/null | head -c 10000)
     NEW_STRING=$(echo "$TOOL_INPUT" | jq -r '.new_string // .content // empty' 2>/dev/null | head -c 10000)
 

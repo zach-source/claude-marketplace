@@ -15,7 +15,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Task|Write|Edit|MultiEdit|Read|Grep|Glob",
+        "matcher": "Bash|Edit|Write|apply_patch|Agent",
         "hooks": [
           {
             "type": "command",

@@ -45,12 +45,34 @@ Behavioural differences, per plugin:
 - **and-then** reads `last_assistant_message` off the Stop payload rather than
   walking `transcript_path`, whose format the hook docs call unstable. Its slash
   commands became a skill, since Codex plugins have no commands.
-- **vector-memory** rewraps `claude-vector` output as
-  `hookSpecificOutput.additionalContext`. Codex ignores plain stdout on
-  `PreToolUse`, so the retrieved context would otherwise never reach the model.
+- **vector-memory** extracts the query from `tool_input` itself and rewraps the
+  result as `hookSpecificOutput.additionalContext`. `claude-vector` reads its
+  query from `tool`/`arguments`, which no harness sends, and prints
+  `{"role","content"}`, which is no harness's hook protocol. Both ends were
+  broken, so the hook exited 0 while retrieving nothing and injecting nothing.
+  Fixed in the wrapper rather than the CLI, which is nix-managed and shared with
+  the Claude tree.
 - **session-hygiene** drops `scripts/sync-mcp-servers.sh`, which rewrites
   `~/.claude.json`. It is wired to no hook, and editing another harness's config
   is the only thing it could do from here.
+
+## Tool names
+
+Codex's tool vocabulary is not Claude Code's, and the difference is easy to miss
+because it fails quietly rather than loudly:
+
+- File edits are **`apply_patch`**. `Edit` and `Write` work in a `matcher`, which
+  is a regex over the tool name plus its aliases, but the payload always reports
+  `tool_name: "apply_patch"` — so a script that compares `.tool_name` against
+  `Write` or `Edit` never matches.
+- `apply_patch` has no structured file-path field. The entire patch arrives as one
+  string in `tool_input.command`, so `code-quality` and `notifications` read the
+  edited path off the `*** Update File:` envelope, keeping `.tool_input.file_path`
+  as a fallback.
+- Shell is **`Bash`** (covering `exec_command`), subagents are **`Agent`**, and MCP
+  tools are namespaced `mcp__<server>__<tool>`. `Read`, `Grep`, `Glob` and `Task`
+  do not exist, so `vector-memory`'s matcher is
+  `Bash|Edit|Write|apply_patch|Agent`.
 
 Not mirrored: `slash-commands` and `subagents`. Codex plugins have no commands or
 agents component, and both plugins are nothing but those.
@@ -64,6 +86,7 @@ failures may surface less loudly than under Claude Code.
 ```bash
 python3 codex/validate-plugins.py        # manifests, component paths, skills, marketplace
 bash codex/test-and-then-stop-hook.sh    # and-then queue advance logic
+bash codex/test-tool-payload-hooks.sh    # apply_patch handling, PreToolUse context rewrap
 ```
 
 `validate-plugins.py` checks that every manifest parses, carries the required
