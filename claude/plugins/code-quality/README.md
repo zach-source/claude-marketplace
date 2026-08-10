@@ -23,3 +23,17 @@ Failures exit 2, which surfaces the diff to Claude as a blocking error so it fix
 instead of moving on.
 
 Set `CLAUDE_HOOKS_LINT_ENABLED=false` to disable, `CLAUDE_HOOKS_DEBUG=1` for verbose output.
+
+## Finding the edited file
+
+`tool_response` is not always an object — roughly 2% of real Edit/Write results arrive as
+a plain string. Reading `.tool_response.filePath` on one of those is a jq error, and the
+error aborts the expression before `//` can reach the `tool_input.file_path` fallback, so
+the hook used to skip those edits entirely, silently and at exit 0. The path lookup now
+tolerates any `tool_response` shape.
+
+`bash test-payload-parsing.sh` covers the shapes (string, array, object, absent, null
+`filePath`) plus tool gating and the disable switch.
+
+`MultiEdit` is still in the matcher but never appears in practice — 0 occurrences across
+25 transcripts, against 499 `Edit` and 143 `Write`. Harmless to keep for older clients.

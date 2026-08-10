@@ -12,8 +12,19 @@ tool_name=$(jq -r '.tool_name' <<<"$payload" 2>/dev/null || echo "")
 # Only run on write operations
 [[ "$tool_name" =~ ^(Write|Edit|MultiEdit)$ ]] || exit 0
 
-# Get the file that was modified
-file=$(jq -r '.tool_response.filePath // .tool_input.file_path // empty' <<<"$payload" 2>/dev/null || echo "")
+# Get the file that was modified.
+#
+# tool_response is not always an object: ~2% of real Edit/Write results come back
+# as a plain string. `.tool_response.filePath` then errors out ("cannot index
+# string"), which aborts the whole expression before `//` can reach the
+# tool_input fallback - so the hook skipped linting entirely on those calls,
+# silently and at exit 0. The `?` keeps an unindexable tool_response from taking
+# the fallback down with it.
+file=$(jq -r '
+  [ .tool_response.filePath?, .tool_input.file_path ]
+  | map(select(type == "string" and . != ""))
+  | first // empty
+' <<<"$payload" 2>/dev/null || echo "")
 [[ -z "$file" || ! -f "$file" ]] && exit 0
 
 # Configuration from environment
