@@ -39,6 +39,13 @@ standalone.
 | [slash-commands](./claude/plugins/slash-commands) | productivity | 18 slash commands |
 | [workflow-skills](./claude/plugins/workflow-skills) | workflow | granted, 1password, herdr, herdr-claude-loop |
 
+## Codex plugins
+
+Seven of the nine are mirrored for Codex under [`codex/plugins/`](./codex), with
+their own marketplace at `.agents/plugins/marketplace.json`. `subagents` and
+`slash-commands` are not — Codex plugins have no agents or commands component.
+See [codex/README.md](./codex/README.md) for the per-plugin differences.
+
 ## Installation
 
 ```bash

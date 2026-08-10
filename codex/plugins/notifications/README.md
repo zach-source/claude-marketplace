@@ -1,22 +1,25 @@
 # notifications
 
-Tells you when Claude wants you back.
+Tells you when the agent wants you back.
 
 ## Hooks
 
 | Event | Script | What it does |
 |-------|--------|--------------|
-| Notification | `notify-hook.sh notification` | Desktop + tmux alert when Claude needs input |
-| Stop | `notify-hook.sh stop` | Alert when Claude finishes a turn |
+| Stop | `notify-hook.sh stop` | Alert when the agent finishes a turn |
 | SubagentStop | `subagent-stop-hook.sh` | Alert when a subagent completes |
 | PostToolUse (`Write\|Edit\|MultiEdit`) | `claude-mon-hook.sh` | Streams edits to the claude-mon TUI and daemon |
 
 `claude-mon-hook.sh` is a no-op if claude-mon is not running.
 
+The Claude build of this plugin also fires on `Notification` to alert when the
+agent needs input. Codex has no `Notification` event, so that alert is missing
+here — `Stop` is the closest signal available.
+
 ## Statusline
 
-Not a hook — Claude Code takes the statusline from `settings.json`, so plugins cannot wire
-it. Two options in `statusline/`:
+Not a hook, and not wired by the plugin — `statusline/` is carried over for use
+with a host that reads a statusline command from its own config. Two options:
 
 `claude-statusline.sh` — model | context% | branch | diff stat:
 

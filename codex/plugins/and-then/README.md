@@ -1,6 +1,6 @@
 # And-Then
 
-Sequential task queue with parallel fork support for Claude Code.
+Sequential task queue with parallel fork support.
 
 ## Features
 
@@ -11,48 +11,59 @@ Sequential task queue with parallel fork support for Claude Code.
 
 ## Usage
 
+Codex plugins have no slash commands, so the queue is driven by running the
+scripts directly. The bundled `and-then` skill tells the model how; these are the
+same calls by hand:
+
 ```bash
 # Sequential tasks
-/and-then --task "Build the API" --task "Write tests" --task "Update docs"
+${PLUGIN_ROOT}/scripts/setup-and-then.sh --task "Build the API" --task "Write tests" --task "Update docs"
 
 # Mix sequential and parallel tasks
-/and-then --task "Build the API" \
-          --fork "Unit tests" "Integration tests" "E2E tests" \
-          --task "Deploy to staging"
+${PLUGIN_ROOT}/scripts/setup-and-then.sh \
+    --task "Build the API" \
+    --fork "Unit tests" "Integration tests" "E2E tests" \
+    --task "Deploy to staging"
 ```
 
-## Commands
+## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `/and-then` | Create a new task queue |
-| `/and-then-add` | Add tasks to existing queue |
-| `/and-then-skip` | Skip current task |
-| `/and-then-status` | Show queue progress |
-| `/and-then-cancel` | Cancel the queue |
+| Script | Description |
+|--------|-------------|
+| `scripts/setup-and-then.sh` | Create a new task queue |
+| `scripts/and-then-add.sh` | Add tasks to existing queue |
+| `scripts/and-then-skip.sh` | Skip current task |
+| `scripts/and-then-status.sh` | Show queue progress |
+| `rm .claude/and-then-queue.json` | Cancel the queue |
 
 ## How It Works
 
-1. Queue stored in `.claude/and-then-queue.local.md`
+1. Queue stored in `.claude/and-then-queue.json`
 2. Work on current task
 3. Output `<done/>` when complete
 4. Stop hook advances to next task
 5. For forks: launch parallel subagents, wait for all, then `<done/>`
+
+The Stop hook reads the finished turn from `last_assistant_message` on the hook
+payload. The Claude build parses the transcript instead, which the Codex hook
+docs warn is not a stable interface.
 
 ## Examples
 
 ### Parallel Testing Pipeline
 
 ```bash
-/and-then --task "Build the application" \
-          --fork "Run unit tests" "Run integration tests" "Run linting" \
-          --task "Deploy to staging"
+${PLUGIN_ROOT}/scripts/setup-and-then.sh \
+    --task "Build the application" \
+    --fork "Run unit tests" "Run integration tests" "Run linting" \
+    --task "Deploy to staging"
 ```
 
 ### Research-Then-Implement
 
 ```bash
-/and-then --fork "Research auth libraries" "Review security requirements" \
-          --task "Implement authentication" \
-          --task "Write tests"
+${PLUGIN_ROOT}/scripts/setup-and-then.sh \
+    --fork "Research auth libraries" "Review security requirements" \
+    --task "Implement authentication" \
+    --task "Write tests"
 ```
