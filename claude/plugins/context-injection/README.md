@@ -28,3 +28,18 @@ python3 scripts/context-manager.py clear all
 
 `python3`, `jq`. Everything degrades to a no-op when the inputs are absent — no project
 docs, no injection.
+
+## Output contract
+
+`inject_project_docs.py` emits `hookSpecificOutput.additionalContext`, and nothing at all
+when there is nothing to inject.
+
+It used to rewrite `payload["prompt"]` and print the whole payload back, on the assumption
+that a hook is a filter the harness pipes the payload through. It isn't. UserPromptSubmit
+adds a hook's raw stdout to the context, so that dumped the entire JSON envelope —
+`session_id`, `cwd`, every tool field — into the conversation on **every prompt**, and did
+it even with no project docs present. The documents reached the model only incidentally,
+buried in a `prompt` key nothing reads back.
+
+Covered by `bash claude/test-hook-contract.sh` at the repo root, which asserts no hook
+echoes its input envelope back.

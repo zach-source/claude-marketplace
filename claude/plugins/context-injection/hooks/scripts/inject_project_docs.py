@@ -139,7 +139,19 @@ I will now proceed with the user's request while keeping this context in mind.
 
 
 def main():
-    """Main hook execution."""
+    """Main hook execution.
+
+    Emits hookSpecificOutput.additionalContext, and nothing at all when there is
+    nothing to inject.
+
+    This used to rewrite payload["prompt"] and print the whole payload back, on
+    the assumption that a hook is a filter the harness pipes the payload through.
+    It is not. UserPromptSubmit adds a hook's raw stdout to the context, so that
+    echoed the entire JSON envelope - session_id, cwd, tool fields and all - into
+    the conversation on every single prompt, and did it even when no project docs
+    existed. The documents only reached the model incidentally, buried in a
+    "prompt" key nothing reads back.
+    """
     try:
         # Read the input from stdin
         input_data = sys.stdin.read()
@@ -149,18 +161,14 @@ def main():
             payload = json.loads(input_data)
         except json.JSONDecodeError:
             debug_log("Failed to parse JSON input")
-            print(input_data, end="")
             return 0
 
-        # Extract the prompt and working directory
-        prompt = payload.get("prompt", "")
         cwd = payload.get("cwd", os.getcwd())
 
         # Find the project root
         project_root = find_project_root(Path(cwd))
         if not project_root:
             debug_log("No project root found, skipping injection")
-            print(json.dumps(payload))
             return 0
 
         # Check for and read critical files
@@ -176,39 +184,31 @@ def main():
             else:
                 debug_log(f"{filename} not found or empty")
 
-        # If we have documents to inject, modify the prompt
-        if documents_to_inject:
-            injection = format_document_injection(documents_to_inject)
+        if not documents_to_inject:
+            debug_log("No critical files found, nothing to inject")
+            return 0
 
-            # Inject at the beginning of the prompt (primacy effect)
-            # But after any system-level instructions if they exist
-            if prompt.startswith("<system>"):
-                # Find the end of system tag and inject after
-                system_end = prompt.find("</system>")
-                if system_end != -1:
-                    system_end += len("</system>")
-                    modified_prompt = (
-                        prompt[:system_end] + "\n" + injection + prompt[system_end:]
-                    )
-                else:
-                    modified_prompt = injection + prompt
-            else:
-                modified_prompt = injection + prompt
+        injection = format_document_injection(documents_to_inject)
+        debug_log(f"Injecting {len(documents_to_inject)} documents")
+        debug_log(f"Total injection size: {len(injection)} characters")
 
-            payload["prompt"] = modified_prompt
-
-            debug_log(f"Injected {len(documents_to_inject)} documents into context")
-            debug_log(f"Total injection size: {len(injection)} characters")
-
-        # Output the modified payload
-        print(json.dumps(payload))
+        print(
+            json.dumps(
+                {
+                    "hookSpecificOutput": {
+                        "hookEventName": "UserPromptSubmit",
+                        "additionalContext": injection,
+                    }
+                }
+            )
+        )
         return 0
 
     except Exception as e:
         debug_log(f"Unexpected error: {e}")
-        # On error, pass through unchanged
-        print(input_data, end="")
-        return 1
+        # Stay quiet rather than emit a half-formed payload: stdout here becomes
+        # context, and the debug log is the place to find out what broke.
+        return 0
 
 
 if __name__ == "__main__":

@@ -59,7 +59,7 @@ case "$extension" in
     if command_exists go && [[ -f "$file" ]]; then
       pkg_dir=$(dirname "$file")
       if [[ -f "$pkg_dir/go.mod" ]] || (cd "$pkg_dir" && go env GOMOD 2>/dev/null | grep -q .); then
-        if go vet "$pkg_dir/..." 2>&1; then
+        if go vet "$pkg_dir/..." >&2; then
           log_success "Go vet OK: $file"
         else
           add_error "Go vet issues in $file"
@@ -70,7 +70,7 @@ case "$extension" in
     
   py)
     if command_exists black && [[ -f "$file" ]]; then
-      if black --check --quiet "$file" 2>&1; then
+      if black --check --quiet "$file" >&2; then
         log_success "Python formatting OK: $file"
       else
         add_error "Python formatting issues in $file (run black to fix)"
@@ -98,7 +98,7 @@ case "$extension" in
     
   rs)
     if command_exists rustfmt && [[ -f "$file" ]]; then
-      if rustfmt --check "$file" 2>&1; then
+      if rustfmt --check "$file" >&2; then
         log_success "Rust formatting OK: $file"
       else
         add_error "Rust formatting issues in $file"
@@ -120,7 +120,7 @@ case "$extension" in
 
   nix)
     if command_exists nixfmt && [[ -f "$file" ]]; then
-      if nixfmt --check "$file" 2>&1; then
+      if nixfmt --check "$file" >&2; then
         log_success "Nix formatting OK: $file"
       else
         add_error "Nix formatting issues in $file"
