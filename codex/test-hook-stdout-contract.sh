@@ -114,6 +114,21 @@ assert_channel() {
     fail=1
     return
   fi
+  # Anything outside the documented result fields is output nobody meant to emit.
+  # A daemon replying {"status":"ok"} down an nc pipe is valid JSON, carries no
+  # bad control key and no envelope key, so the three checks above all wave it
+  # through - the redirect is what stops it, not the contract. Assert the shape
+  # positively so the check covers that class too.
+  local unknown
+  unknown=$(jq -r 'if type == "object"
+                   then (keys - ["continue","stopReason","systemMessage","suppressOutput",
+                                 "decision","reason","hookSpecificOutput"] | join(", "))
+                   else "" end' <<<"$out" 2>/dev/null)
+  if [[ -n "$unknown" ]]; then
+    echo "FAIL $label emitted unrecognised result keys ($unknown)"
+    fail=1
+    return
+  fi
   echo "ok   $label (clean JSON)"
 }
 

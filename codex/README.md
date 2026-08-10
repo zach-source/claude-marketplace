@@ -165,6 +165,10 @@ stdout:
 3. **no input-envelope keys** at top level (`session_id`, `cwd`, `tool_input`, …)
    — catches a hook written as a filter. This one is valid JSON with no bad
    control keys, so the first two miss it entirely.
+4. **no keys outside the documented result fields** — catches innocuous-looking
+   output nobody meant to emit. A daemon replying `{"status":"ok"}` down an `nc`
+   pipe passes all three checks above; only this one sees it. Benign is not the
+   same as guarded.
 
 That contract is worth more than a test per bug: it caught the `PreCompact` leak
 in a plugin nobody was looking at.
@@ -180,6 +184,46 @@ keeps `.codex-plugin/` free of anything but `plugin.json`, and that each compone
 pointer starts with `./` and resolves inside the plugin root. It also checks the
 marketplace lists exactly the plugins present on disk, with the required
 `policy.installation`, `policy.authentication` and `category` on each entry.
+
+## What is measured, what is only read
+
+The green counts above do not distinguish between "checked against reality" and
+"checked against the documentation", so state it plainly.
+
+**The overriding caveat: none of this has been run under Codex itself.** Every
+payload the suites feed is synthesised from the docs. The suites prove these hooks
+behave correctly *given* the documented contract; they cannot prove the contract.
+
+**Measured** — observed against something real:
+
+- `claude-vector` emits `{"role","content"}` and reads its query from
+  `tool`/`arguments`: read from its source and run.
+- The claude-mon daemon replies `{"status":"ok"}` to an edit record: sent one over
+  the real socket. That is also exactly what leaks onto a hook's stdout without the
+  redirect — the leak is observed, not theorised.
+- Everything the suites assert about these scripts' own behaviour.
+
+**Documented, not observed** — taken from the hook and plugin references:
+
+- the eleven hook events, and the absence of `Notification`
+- `decision:"block"` meaning *continue* on Stop/SubagentStop, and `stop_hook_active`
+- **`last_assistant_message` on the Stop payload** — load-bearing for `and-then`,
+  and never seen in a captured live payload; the tests synthesise it
+- tool names (`apply_patch`, `Bash`, `Agent`), `Edit`/`Write` being matcher aliases
+  while `tool_name` still reports `apply_patch`, and `tool_input.command` carrying
+  the patch
+- `hookSpecificOutput.additionalContext` being the only channel to the model on
+  `PreToolUse`, and `PLUGIN_ROOT`
+
+**Inferred** — neither observed nor documented:
+
+- **The `apply_patch` envelope format.** The docs say only that `tool_input.command`
+  is a string; the `*** Update File:` parsing in `smart-lint.sh` and
+  `claude-mon-hook.sh` comes from the format's conventional shape. If it is wrong,
+  both degrade to the no-op they had before rather than misbehaving.
+- The allowed result-key list in `test-hook-stdout-contract.sh` is assembled from
+  the documented output fields. A legitimate field not in that list would show up as
+  a false failure, not a missed bug.
 
 ## Installing
 

@@ -49,6 +49,11 @@ payload, which is what the hook docs point at for `Stop`. It also honours
 `stop_hook_active`: once it has blocked a stop, a second stop with no readable
 completion signal is allowed through rather than re-fed forever.
 
+`last_assistant_message` is documented but has not been observed in a captured live
+payload — the tests synthesise it. If it turns out absent, the hook warns that it
+found no assistant output and re-feeds the current task, bounded by
+`stop_hook_active`; that is the pre-existing behaviour, not a new failure.
+
 ## Examples
 
 ### Parallel Testing Pipeline
