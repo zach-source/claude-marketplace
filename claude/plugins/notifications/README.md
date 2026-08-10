@@ -13,6 +13,21 @@ Tells you when Claude wants you back.
 
 `claude-mon-hook.sh` is a no-op if claude-mon is not running.
 
+### claude-mon payload handling
+
+The hook used to take `TOOL_INPUT` and `TOOL_NAME` from the **environment** — a legacy
+env-var hook interface that no harness sets. Claude Code delivers the payload as JSON on
+stdin, so both were always empty: the TUI received blank lines and `FILE_PATH` never
+resolved, which meant the daemon branch never ran at all. It now reads stdin, and takes
+the workspace from the payload's `cwd` rather than the hook process's own.
+
+Both `nc` sends are redirected to `/dev/null`. `nc`'s stdout is the hook's stdout, and
+PostToolUse stdout is parsed for hook decisions — a daemon replying with a `decision` or
+`continue` key could otherwise steer the session. Nothing that socket says is for Claude.
+
+`bash test-claude-mon-hook.sh` runs the hook against a stand-in daemon socket: delivery,
+the stdout-leak guard, non-object `tool_input`, and the no-socket no-op.
+
 ## Statusline
 
 Not a hook — Claude Code takes the statusline from `settings.json`, so plugins cannot wire
