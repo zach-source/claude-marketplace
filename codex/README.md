@@ -48,6 +48,9 @@ Behavioural differences, per plugin:
 - **vector-memory** rewraps `claude-vector` output as
   `hookSpecificOutput.additionalContext`. Codex ignores plain stdout on
   `PreToolUse`, so the retrieved context would otherwise never reach the model.
+- **session-hygiene** drops `scripts/sync-mcp-servers.sh`, which rewrites
+  `~/.claude.json`. It is wired to no hook, and editing another harness's config
+  is the only thing it could do from here.
 
 Not mirrored: `slash-commands` and `subagents`. Codex plugins have no commands or
 agents component, and both plugins are nothing but those.

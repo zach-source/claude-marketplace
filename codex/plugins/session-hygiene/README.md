@@ -23,10 +23,10 @@ available behaviour.
 At the 300s default any five-minute pause on a large session refuses the next prompt. Set
 the TTL to the cache you actually have.
 
-## Utility
-
-`scripts/sync-mcp-servers.sh` strips `mcpServers` out of `~/.claude.json`, where it shadows
-`~/.claude/mcp_servers.json`. Not wired as a hook — run it by hand or drop it on `PATH`.
+The Claude build also ships `scripts/sync-mcp-servers.sh`, which rewrites
+`~/.claude.json`. It is not carried over here: it is wired to no hook, and Codex
+keeps its MCP configuration somewhere else entirely, so the only thing it could
+do in this tree is edit another harness's config by surprise.
 
 ## Requirements
 
