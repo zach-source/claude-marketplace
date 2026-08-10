@@ -24,8 +24,8 @@ check() {
 
 # Feed the hook one Stop event; returns its stdout.
 stop() {
-  jq -nc --arg cwd "$WORK" --arg msg "$1" \
-    '{hook_event_name:"Stop",cwd:$cwd,stop_hook_active:false,last_assistant_message:$msg}' \
+  jq -nc --arg cwd "$WORK" --arg msg "$1" --argjson active "${2:-false}" \
+    '{hook_event_name:"Stop",cwd:$cwd,stop_hook_active:$active,last_assistant_message:$msg}' \
     | bash "$HOOK" 2>/dev/null
 }
 
@@ -68,5 +68,18 @@ check "queue file removed" "gone" \
 # No queue file at all: the hook must stay out of the way.
 out=$(stop "anything")
 check "no-op without a queue" "" "$out"
+
+# stop_hook_active means we already blocked once. Blocking again on a signal we
+# cannot read is how a Stop hook loops forever, so it must let the session go.
+reset_queue
+out=$(stop "no completion signal here" true)
+check "loop guard releases the stop" "" "$out"
+check "loop guard leaves index alone" "0" \
+      "$(jq -r .current_index "$WORK/.claude/and-then-queue.json")"
+
+# The guard must not swallow a legitimate advance on a fresh (inactive) stop.
+out=$(stop "done now <done/>")
+check "advances again once inactive" "block|second task" \
+      "$(jq -r '"\(.decision)|\(.reason)"' <<<"$out")"
 
 exit $fail

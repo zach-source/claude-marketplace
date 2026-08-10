@@ -24,6 +24,13 @@ if [[ ! -f "$QUEUE_FILE" ]]; then
     exit 0
 fi
 
+# Guard against looping: if we already blocked once and the session is still
+# trying to stop, let it. Without this, a completion signal we cannot read
+# re-feeds the same task forever.
+if [[ "$(echo "$HOOK_INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null)" == "true" ]]; then
+    exit 0
+fi
+
 # Parse state file (JSON format - no external dependencies)
 STATE_JSON=$(cat "$QUEUE_FILE" 2>/dev/null || echo '{}')
 

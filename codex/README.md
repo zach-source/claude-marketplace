@@ -43,7 +43,12 @@ Behavioural differences, per plugin:
 - **notifications** drops its `Notification` hook. Codex has eleven hook events
   and `Notification` is not among them.
 - **and-then** reads `last_assistant_message` off the Stop payload rather than
-  walking `transcript_path`, whose format the hook docs call unstable. Its slash
+  walking `transcript_path`. Not just tidier: the transcript scan matched a
+  top-level `.role` that no transcript actually contains, so `<done/>` was never
+  detected and the queue re-fed task 1 forever. Reading the payload also avoids a
+  race, since transcript writes are async and may not include the turn that
+  triggered the hook. A `stop_hook_active` guard bounds the re-feed, because an
+  unconditional `decision:"block"` is exactly how a Stop hook loops. Its slash
   commands became a skill, since Codex plugins have no commands.
 - **vector-memory** extracts the query from `tool_input` itself and rewraps the
   result as `hookSpecificOutput.additionalContext`. `claude-vector` reads its

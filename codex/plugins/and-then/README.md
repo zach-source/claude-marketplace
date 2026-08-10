@@ -45,8 +45,9 @@ ${PLUGIN_ROOT}/scripts/setup-and-then.sh \
 5. For forks: launch parallel subagents, wait for all, then `<done/>`
 
 The Stop hook reads the finished turn from `last_assistant_message` on the hook
-payload. The Claude build parses the transcript instead, which the Codex hook
-docs warn is not a stable interface.
+payload, which is what the hook docs point at for `Stop`. It also honours
+`stop_hook_active`: once it has blocked a stop, a second stop with no readable
+completion signal is allowed through rather than re-fed forever.
 
 ## Examples
 
