@@ -107,6 +107,22 @@ variable carrying it — `claude-mon-hook.sh` read `$TOOL_INPUT`/`$TOOL_NAME` fr
 the environment, which nothing sets, so it streamed empty records and never
 resolved a path.
 
+## Writing to stdout
+
+A hook's stdout *is* its result: the harness parses it. Two consequences that are
+easy to get wrong, and that `test-hook-stdout-contract.sh` exists to catch.
+
+**`block` is the only valid `decision`.** Omitting the field is how a hook allows;
+there is no `"approve"`. Both notify hooks used to end with
+`{"decision":"approve","suppressOutput":true}`, which failed validation on every
+invocation.
+
+**Anything a hook runs inherits that stdout.** Redirect *both* streams of every
+helper — `>/dev/null 2>&1`, not `2>/dev/null`. `terminal-notifier` writes
+"Removing previously sent notification…" to **stdout** when it replaces one, and
+`nc` hands back whatever a daemon replies, either of which corrupts the JSON or,
+worse, could be read as a decision. `2>/dev/null` looks like silencing and is not.
+
 Not mirrored: `slash-commands` and `subagents`. Codex plugins have no commands or
 agents component, and both plugins are nothing but those.
 
@@ -120,7 +136,15 @@ failures may surface less loudly than under Claude Code.
 python3 codex/validate-plugins.py        # manifests, component paths, skills, marketplace
 bash codex/test-and-then-stop-hook.sh    # and-then queue advance logic
 bash codex/test-tool-payload-hooks.sh    # apply_patch handling, PreToolUse context rewrap
+bash codex/test-hook-stdout-contract.sh  # every hook's stdout stays a valid result
 ```
+
+`test-hook-stdout-contract.sh` discovers hooks from the `hooks.json` files rather
+than a hardcoded list, so it covers new hooks automatically. It runs each one
+against stub helpers that are deliberately noisy on both streams, and asserts the
+general property — emit nothing, or parseable JSON with no `decision` other than
+`block`. That contract is worth more than a test per bug: it caught the
+`PreCompact` leak in a plugin nobody was looking at.
 
 `validate-plugins.py` checks that every manifest parses, carries the required
 `name`/`version`/`description`, uses a kebab-case name matching its directory,

@@ -88,17 +88,20 @@ if [[ "$(uname)" == "Darwin" ]] && command_exists terminal-notifier; then
     fi
   fi
   
-  "${NOTIFIER_CMD[@]}" 2>/dev/null || true
+  # Both streams, not just stderr: terminal-notifier prints "Removing previously
+  # sent notification" to STDOUT when it replaces one, and this hook's stdout is
+  # parsed as its JSON result.
+  "${NOTIFIER_CMD[@]}" >/dev/null 2>&1 || true
 
 # macOS fallback with osascript
 elif [[ "$(uname)" == "Darwin" ]] && command_exists osascript; then
-  osascript -e "display notification \"$BODY\" with title \"$TITLE\" sound name \"Glass\"" 2>/dev/null || true
+  osascript -e "display notification \"$BODY\" with title \"$TITLE\" sound name \"Glass\"" >/dev/null 2>&1 || true
 
 # Linux with notify-send
 elif command_exists notify-send; then
-  notify-send -u low "$TITLE" "$BODY" 2>/dev/null || true
+  notify-send -u low "$TITLE" "$BODY" >/dev/null 2>&1 || true
 fi
 
-# Return success (don't block)
-echo '{"decision": "approve", "suppressOutput": true}'
+# Emit nothing: on SubagentStop "block" means keep going, and omitting the field
+# is how a hook allows. The old {"decision":"approve"} was not in the schema.
 exit 0

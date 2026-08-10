@@ -43,21 +43,25 @@ if [[ "$(uname)" == "Darwin" ]] && command -v terminal-notifier >/dev/null 2>&1;
     NOTIFIER_CMD+=(-execute "zellij action focus-pane --pane-id $ZELLIJ_PANE_ID")
 
     # Also flash the tab to draw attention
-    zellij action write 27 91 53 109 2>/dev/null || true  # Flash escape sequence
+    zellij action write 27 91 53 109 >/dev/null 2>&1 || true  # Flash escape sequence
   fi
 
-  # Send the notification
-  "${NOTIFIER_CMD[@]}" 2>/dev/null || true
+  # Send the notification. Both streams go to /dev/null, not just stderr:
+  # terminal-notifier prints "Removing previously sent notification" to STDOUT
+  # when it replaces one, and this hook's stdout is parsed as its JSON result.
+  "${NOTIFIER_CMD[@]}" >/dev/null 2>&1 || true
 
 # Fallback to osascript for macOS without terminal-notifier
 elif [[ "$(uname)" == "Darwin" ]] && command -v osascript >/dev/null 2>&1; then
-  osascript -e "display notification \"$BODY\" with title \"$TITLE\"" 2>/dev/null || true
+  osascript -e "display notification \"$BODY\" with title \"$TITLE\"" >/dev/null 2>&1 || true
 
 # For Linux, use notify-send if available
 elif command_exists notify-send; then
-  notify-send "$TITLE" "$BODY" || true
+  notify-send "$TITLE" "$BODY" >/dev/null 2>&1 || true
 fi
 
-# Return JSON response with suppressOutput to avoid cluttering Claude's output
-echo '{"decision": "approve", "reason": "Notification sent", "suppressOutput": true}'
+# Emit nothing. "block" is the only valid decision and it means "keep going" -
+# omitting the field entirely is how a hook allows. The old
+# {"decision":"approve","suppressOutput":true} was not in the schema and failed
+# validation on every notification.
 exit 0
