@@ -43,15 +43,21 @@ done
 
 fail=0
 mkdir -p "$WORK/.claude"
-printf 'x = 1\n' > "$WORK/demo.py"
+
+# One fixture per file-type branch a lint hook might take. A single .py fixture
+# would leave five of six branches exercised by no test at all - which is how
+# three of the four `2>&1` sites originally shipped "verified" by inspection.
+FIXTURES=(demo.go demo.py demo.ts demo.rs demo.yaml demo.nix)
+for fx in "${FIXTURES[@]}"; do printf 'x = 1\n' > "$WORK/$fx"; done
 
 # A representative payload per event. cwd points at a scratch dir so nothing a
 # hook writes lands in the repo.
 payload_for() {
   local event=$1
+  local f=${2:-$WORK/demo.py}
   case "$event" in
     PreToolUse|PostToolUse)
-      jq -nc --arg c "$WORK" --arg f "$WORK/demo.py" \
+      jq -nc --arg c "$WORK" --arg f "$f" \
         '{hook_event_name:"PostToolUse",session_id:"s1",cwd:$c,tool_name:"apply_patch",
           tool_use_id:"t1",tool_input:{command:("*** Begin Patch\n*** Update File: " + $f + "\n@@\n-a\n+b\n*** End Patch")},
           tool_response:{filePath:$f}}' ;;
@@ -118,11 +124,21 @@ for hooks_json in codex/plugins/*/hooks/hooks.json; do
     [[ -z "$cmd" ]] && continue
     # Resolve ${PLUGIN_ROOT} to this plugin's directory.
     resolved=${cmd//\$\{PLUGIN_ROOT\}/codex/plugins/$plugin}
-    out=$(payload_for "$event" \
-          | PATH="$STUB:$PATH" PLUGIN_ROOT="codex/plugins/$plugin" \
-            bash -c "$resolved" 2>/dev/null)
-    assert_channel "$plugin/$event $(basename "${resolved%% *}")" "$out"
-    checked=$((checked + 1))
+    script=$(basename "${resolved%% *}")
+
+    # Tool events get run once per file type, so per-extension branches inside a
+    # hook are actually reached. Other events have no such branching.
+    local_fixtures=("")
+    case "$event" in PreToolUse|PostToolUse) local_fixtures=("${FIXTURES[@]}") ;; esac
+
+    for fx in "${local_fixtures[@]}"; do
+      [[ -n "$fx" ]] && label="$plugin/$event $script [$fx]" || label="$plugin/$event $script"
+      out=$(payload_for "$event" "${fx:+$WORK/$fx}" \
+            | PATH="$STUB:$PATH" PLUGIN_ROOT="codex/plugins/$plugin" \
+              bash -c "$resolved" 2>/dev/null)
+      assert_channel "$label" "$out"
+      checked=$((checked + 1))
+    done
   done < <(jq -r '.hooks | to_entries[] | .key as $e
                   | .value[]?.hooks[]? | select(.type == "command")
                   | "\($e)\t\(.command)"' "$hooks_json")

@@ -155,7 +155,10 @@ bash codex/test-hook-stdout-contract.sh  # every hook's stdout stays a valid res
 than a hardcoded list, so it covers new hooks automatically. It runs each one
 against stub helpers that are deliberately noisy on both streams — including
 checkers that always fail, since a checker only writes when it finds something and
-a clean fixture proves nothing. It asserts three things about stdout:
+a clean fixture proves nothing. Tool events are replayed once per file type
+(`.go .py .ts .rs .yaml .nix`), because a single fixture leaves every other
+per-extension branch covered by no test at all. It asserts three things about
+stdout:
 
 1. **parseable** — catches helper chatter and `checker 2>&1`.
 2. **no unmeant control keys** — no `decision` other than `block`.
@@ -165,6 +168,11 @@ a clean fixture proves nothing. It asserts three things about stdout:
 
 That contract is worth more than a test per bug: it caught the `PreCompact` leak
 in a plugin nobody was looking at.
+
+Every fix here was confirmed by reverting it and watching the suite go red on the
+expected line. Reverting all four `2>&1` sites fails exactly `.go`, `.py`, `.rs`
+and `.nix`, leaving `.ts` and `.yaml` green — `prettier` and `yq` were already
+correct. A check that has never failed is not evidence that it works.
 
 `validate-plugins.py` checks that every manifest parses, carries the required
 `name`/`version`/`description`, uses a kebab-case name matching its directory,
