@@ -1,6 +1,6 @@
 {
   "name": "and-then",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Sequential task queue with parallel fork support - auto-advances when tasks complete",
   "author": {
     "name": "ztaylor",

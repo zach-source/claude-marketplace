@@ -6,7 +6,7 @@
   outputs =
     { self, nixpkgs }:
     let
-      version = "1.1.0";
+      version = "1.2.0";
 
       # ponytail: genAttrs instead of a flake-utils input - one line does it.
       systems = [

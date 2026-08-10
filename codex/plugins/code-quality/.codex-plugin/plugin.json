@@ -1,6 +1,6 @@
 {
   "name": "code-quality",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Runs the right formatter/linter on every file Claude writes - go, python, js/ts, rust, nix",
   "author": {
     "name": "ztaylor",
