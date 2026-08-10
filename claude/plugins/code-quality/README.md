@@ -13,16 +13,43 @@ tool = skipped, not failed.
 
 | Extension | Checker |
 |-----------|---------|
-| `.go` | `gofmt -l` |
+| `.go` | `gofmt -l`, plus `go vet` when the file sits in a module |
 | `.py` | `black --check`, `flake8` |
 | `.js` `.jsx` `.ts` `.tsx` | `prettier --check` |
 | `.rs` | `rustfmt --check` |
+| `.yaml` `.yml` | `yq e` (syntax only) |
 | `.nix` | `nixfmt --check` |
 
 Failures exit 2, which surfaces the diff to Claude as a blocking error so it fixes the file
 instead of moving on.
 
 Set `CLAUDE_HOOKS_LINT_ENABLED=false` to disable, `CLAUDE_HOOKS_DEBUG=1` for verbose output.
+
+## Pinning the checkers (`CLAUDE_HOOKS_BIN`)
+
+"Whichever checker is on `PATH`" is the weak point for a declarative install: hooks inherit
+no interactive shell `PATH`, and a missing tool is skipped at exit 0 — so a checker that was
+never found and one that passed look the same from outside.
+
+Set `CLAUDE_HOOKS_BIN` to a colon-separated list of bin directories and they are searched
+first. Unset, nothing changes and a plain checkout keeps working.
+
+```nix
+# home-manager: pin the exact store binaries, use the plugin script unmodified
+programs.claude-code.settings.env.CLAUDE_HOOKS_BIN = lib.makeBinPath [
+  pkgs.coreutils pkgs.jq pkgs.go pkgs.black pkgs.python3Packages.flake8
+  pkgs.prettier pkgs.rustfmt pkgs.nixfmt pkgs.yq-go
+];
+```
+
+This is deliberately one search path rather than a variable per command: it covers every
+checker at once, including ones the script gains later, and it is the same shape as
+`wrapProgram --prefix PATH`. An entry that is not a directory is reported on stderr rather
+than ignored — silently falling through to the ambient tool is the failure this exists to
+prevent.
+
+`bash ../../test-bin-pinning.sh` covers precedence, `PATH` fallback, and the bad-entry
+report.
 
 ## Finding the edited file
 

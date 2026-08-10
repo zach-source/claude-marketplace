@@ -63,6 +63,11 @@ it. Two options in `statusline/`:
 
 `jq`. macOS uses `osascript` for desktop notifications; tmux alerts need `tmux`.
 
+Every one of those is looked up on `PATH`, which hooks do not inherit from an interactive
+shell. Set `CLAUDE_HOOKS_BIN` to a colon-separated list of bin directories to have them
+searched first — see [code-quality](../code-quality/README.md#pinning-the-checkers-claude_hooks_bin)
+for the mechanism and the `lib.makeBinPath` wiring. Unset, nothing changes.
+
 The daemon payload shape is confirmed against a running claude-mon, not only a stand-in
 socket: it replies `{"status":"ok"}`. That reply is also what would land on the hook's
 stdout without the redirect — benign today, and benign is not the same as guarded, which
