@@ -60,9 +60,18 @@ fi
 LINT=codex/plugins/code-quality/hooks/scripts/smart-lint.sh
 printf 'x = 1\n' > "$WORK/demo.py"
 
+# The .py branch only says anything if a Python checker is on PATH, so a real
+# black/flake8 makes these assertions a property of the machine: they pass here
+# and fail on any box without one. Stub the checker - what is under test is that
+# the path is extracted from the payload, not that black works.
+STUBS="$MOCK/stubs"; mkdir -p "$STUBS"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$STUBS/black"
+chmod +x "$STUBS/black"
+lint() { PATH="$STUBS:$PATH" CLAUDE_HOOKS_DEBUG=1 bash "$LINT" 2>&1; }
+
 out=$(jq -nc --arg p "$(patch_for "$WORK/demo.py")" \
         '{hook_event_name:"PostToolUse",tool_name:"apply_patch",tool_input:{command:$p}}' \
-      | CLAUDE_HOOKS_DEBUG=1 bash "$LINT" 2>&1)
+      | lint)
 check "apply_patch reaches the linter" "$WORK/demo.py" "$out"
 
 out=$(jq -nc '{hook_event_name:"PostToolUse",tool_name:"Bash",tool_input:{command:"ls"}}' \
@@ -77,7 +86,7 @@ check_empty "missing file is ignored" "$out"
 # The structured payload must keep working - the fallback is still there.
 out=$(jq -nc --arg f "$WORK/demo.py" \
         '{hook_event_name:"PostToolUse",tool_name:"Write",tool_input:{file_path:$f}}' \
-      | CLAUDE_HOOKS_DEBUG=1 bash "$LINT" 2>&1)
+      | lint)
 check "file_path payload still works" "$WORK/demo.py" "$out"
 
 # tool_response is only "tool-specific output" - it is not always a map. Indexing
@@ -88,7 +97,7 @@ for shape in '"a plain string"' '["an","array"]' 'null' '42'; do
   out=$(jq -nc --arg f "$WORK/demo.py" --argjson r "$shape" \
           '{hook_event_name:"PostToolUse",tool_name:"Write",
             tool_response:$r,tool_input:{file_path:$f}}' \
-        | CLAUDE_HOOKS_DEBUG=1 bash "$LINT" 2>&1)
+        | lint)
   check "tool_response as $shape falls back to tool_input" "$WORK/demo.py" "$out"
 done
 
