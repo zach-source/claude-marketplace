@@ -23,6 +23,16 @@ available behaviour.
 At the 300s default any five-minute pause on a large session refuses the next prompt. Set
 the TTL to the cache you actually have.
 
+## Test
+
+`python3 test-session-staleness.py` drives the whole herdr compact-and-resend path against a
+synthetic stale transcript with a fake `herdr` on `PATH`: it asserts the prompt is refused
+(exit 2) and that `/compact` and then the refused prompt are dispatched to `HERDR_PANE_ID`,
+in that order. The dispatch is detached and sleeps before typing, so the test polls rather
+than assuming it has run by the time the hook exits.
+
+No pytest needed — it runs standalone, and `nix flake check` runs it.
+
 ## Utility
 
 `scripts/sync-mcp-servers.sh` strips `mcpServers` out of `~/.claude.json`, where it shadows
