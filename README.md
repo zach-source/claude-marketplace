@@ -67,6 +67,35 @@ Or point at a local checkout in `.claude/plugins.json`:
 { "plugins": ["/path/to/claude-marketplace/claude/plugins/code-quality"] }
 ```
 
+### Nix
+
+The flake exposes the tree as one package. Both marketplace manifests name their
+plugins by path relative to the repo root, so the root is the unit that can be
+installed — there is no per-harness output to split out.
+
+```nix
+{
+  inputs.claude-marketplace.url = "github:zach-source/claude-marketplace";
+
+  # home-manager
+  home.file.".claude/marketplaces/zach-source".source =
+    inputs.claude-marketplace.packages.${pkgs.system}.default;
+
+  # Pi loads flat modules, so point it at the subdirectory
+  home.file.".pi/agent/extensions".source =
+    "${inputs.claude-marketplace.packages.${pkgs.system}.default}/pi/extensions";
+}
+```
+
+The hooks shell out to `jq` plus whatever checker matches the edited file
+(`gofmt`, `black`, `nixfmt`, …). None of those are wrapped into the derivation —
+every one is guarded by `command_exists` and the branch is skipped when it is
+missing, so put the ones you want on your own `PATH`.
+
+`nix flake check` runs the four hook-contract suites. `pi/typecheck.sh` is not
+among them: it resolves the Pi types from a global npm install, which the sandbox
+does not have.
+
 ## What is measured, and what is not
 
 The test counts are identical whether the contract is right or invented, so:
