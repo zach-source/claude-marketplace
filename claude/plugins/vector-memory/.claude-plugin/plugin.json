@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/plugin-schema.json",
   "name": "vector-memory",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Vectorizes transcripts into qdrant before compaction and retrieves relevant prior context on tool use",
   "author": {
     "name": "ztaylor",

@@ -1,6 +1,6 @@
 {
   "name": "workflow-skills",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Skills for AWS role assumption (granted), 1Password CLI, and driving herdr agent loops",
   "author": {
     "name": "ztaylor",

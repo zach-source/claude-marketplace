@@ -1,6 +1,6 @@
 {
   "name": "context-injection",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Injects project docs, working context (k8s/aws/env), library->context7 hints and cwd memory into every prompt",
   "author": {
     "name": "ztaylor",

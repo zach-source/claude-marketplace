@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/plugin-schema.json",
   "name": "notifications",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Desktop and tmux notifications when Claude stops, needs input or finishes a subagent, plus a claude-mon edit stream",
   "author": {
     "name": "ztaylor",

@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/plugin-schema.json",
   "name": "and-then",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Sequential task queue with parallel fork support - auto-advances when tasks complete",
   "author": {
     "name": "ztaylor",

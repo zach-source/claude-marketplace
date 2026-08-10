@@ -1,6 +1,6 @@
 {
   "name": "session-hygiene",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Refuses prompts on a stale session whose prompt cache has lapsed, and keeps MCP server config unshadowed",
   "author": {
     "name": "ztaylor",
