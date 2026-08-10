@@ -1,7 +1,7 @@
 {
-  "name": "workflow-skills",
+  "name": "code-quality",
   "version": "1.0.0",
-  "description": "Skills for AWS role assumption (granted), 1Password CLI, and driving herdr agent loops",
+  "description": "Runs the right formatter/linter on every file Claude writes - go, python, js/ts, rust, nix",
   "author": {
     "name": "ztaylor",
     "url": "https://github.com/zach-source"
@@ -10,10 +10,14 @@
   "repository": "https://github.com/zach-source/claude-marketplace",
   "license": "MIT",
   "keywords": [
-    "skills",
-    "aws",
-    "1password",
-    "herdr"
+    "hooks",
+    "lint",
+    "format",
+    "gofmt",
+    "black",
+    "prettier",
+    "rustfmt",
+    "nixfmt"
   ],
-  "skills": "./skills/"
+  "hooks": "./hooks/hooks.json"
 }

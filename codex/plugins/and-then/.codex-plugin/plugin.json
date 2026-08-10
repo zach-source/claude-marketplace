@@ -1,7 +1,7 @@
 {
-  "name": "workflow-skills",
+  "name": "and-then",
   "version": "1.0.0",
-  "description": "Skills for AWS role assumption (granted), 1Password CLI, and driving herdr agent loops",
+  "description": "Sequential task queue with parallel fork support - auto-advances when tasks complete",
   "author": {
     "name": "ztaylor",
     "url": "https://github.com/zach-source"
@@ -10,10 +10,12 @@
   "repository": "https://github.com/zach-source/claude-marketplace",
   "license": "MIT",
   "keywords": [
-    "skills",
-    "aws",
-    "1password",
-    "herdr"
+    "task-queue",
+    "automation",
+    "workflow",
+    "parallel",
+    "fork"
   ],
+  "hooks": "./hooks/hooks.json",
   "skills": "./skills/"
 }

@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 30,
+            "command": "bash ${PLUGIN_ROOT}/hooks/scripts/smart-lint.sh",
+            "description": "Auto-detect project type and lint the edited file"
+          }
+        ]
+      }
+    ]
+  }
+}

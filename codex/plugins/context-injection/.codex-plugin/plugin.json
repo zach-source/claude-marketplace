@@ -1,7 +1,7 @@
 {
-  "name": "workflow-skills",
+  "name": "context-injection",
   "version": "1.0.0",
-  "description": "Skills for AWS role assumption (granted), 1Password CLI, and driving herdr agent loops",
+  "description": "Injects project docs, working context (k8s/aws/env), library->context7 hints and cwd memory into every prompt",
   "author": {
     "name": "ztaylor",
     "url": "https://github.com/zach-source"
@@ -10,10 +10,11 @@
   "repository": "https://github.com/zach-source/claude-marketplace",
   "license": "MIT",
   "keywords": [
-    "skills",
-    "aws",
-    "1password",
-    "herdr"
+    "hooks",
+    "context",
+    "prompt",
+    "kubernetes",
+    "aws"
   ],
-  "skills": "./skills/"
+  "hooks": "./hooks/hooks.json"
 }

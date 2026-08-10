@@ -5,6 +5,78 @@
   },
   "plugins": [
     {
+      "name": "and-then",
+      "source": {
+        "source": "local",
+        "path": "./codex/plugins/and-then"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "code-quality",
+      "source": {
+        "source": "local",
+        "path": "./codex/plugins/code-quality"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
+      "name": "context-injection",
+      "source": {
+        "source": "local",
+        "path": "./codex/plugins/context-injection"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "notifications",
+      "source": {
+        "source": "local",
+        "path": "./codex/plugins/notifications"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "session-hygiene",
+      "source": {
+        "source": "local",
+        "path": "./codex/plugins/session-hygiene"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
+      "name": "vector-memory",
+      "source": {
+        "source": "local",
+        "path": "./codex/plugins/vector-memory"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
       "name": "workflow-skills",
       "source": {
         "source": "local",

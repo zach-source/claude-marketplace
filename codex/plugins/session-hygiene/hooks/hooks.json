@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 10,
+            "command": "python3 ${PLUGIN_ROOT}/hooks/scripts/session-staleness.py",
+            "description": "Warn/block when a stale session will miss the prompt cache"
+          }
+        ]
+      }
+    ]
+  }
+}

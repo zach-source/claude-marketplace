@@ -1,0 +1,42 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 5,
+            "command": "bash ${PLUGIN_ROOT}/hooks/scripts/inject_project_docs.sh",
+            "description": "Inject STATUS.md / TASKS.md / SESSION_HISTORY.md before work begins"
+          },
+          {
+            "type": "command",
+            "timeout": 3,
+            "command": "python3 ${PLUGIN_ROOT}/hooks/scripts/detect-library-hook.py",
+            "description": "Detect external library mentions and suggest the context7 skill"
+          },
+          {
+            "type": "command",
+            "timeout": 3,
+            "command": "python3 ${PLUGIN_ROOT}/hooks/scripts/inject-context.py",
+            "description": "Inject working context (k8s, aws, env) into prompts"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 5,
+            "command": "bash ${PLUGIN_ROOT}/hooks/scripts/remember-dir.sh",
+            "description": "Remember the working directory across Bash calls"
+          }
+        ]
+      }
+    ]
+  }
+}
