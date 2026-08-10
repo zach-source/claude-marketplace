@@ -1,0 +1,20 @@
+{
+  "name": "claude-marketplace-codex",
+  "interface": {
+    "displayName": "Codex Plugins (zach-source)"
+  },
+  "plugins": [
+    {
+      "name": "workflow-skills",
+      "source": {
+        "source": "local",
+        "path": "./codex/plugins/workflow-skills"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

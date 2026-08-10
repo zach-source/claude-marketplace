@@ -1,0 +1,21 @@
+{
+  "name": "workflow-skills",
+  "version": "1.0.0",
+  "description": "Operational skills for AWS access (granted), secrets (1password), and the herdr agent multiplexer",
+  "author": {
+    "name": "ztaylor",
+    "url": "https://github.com/zach-source"
+  },
+  "homepage": "https://github.com/zach-source/claude-marketplace",
+  "repository": "https://github.com/zach-source/claude-marketplace",
+  "license": "MIT",
+  "keywords": [
+    "aws",
+    "granted",
+    "1password",
+    "secrets",
+    "herdr",
+    "worktrees"
+  ],
+  "skills": "./skills/"
+}
