@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "claude-marketplace",
   "version": "1.0.0",
-  "description": "Community plugins for Claude Code including task queues, workflow automation, and productivity tools",
+  "description": "Plugins for AI coding harnesses: Claude Code (claude/), Codex (codex/) and Pi (pi/)",
   "owner": {
     "name": "zach-source",
     "url": "https://github.com/zach-source"
@@ -16,8 +16,96 @@
         "name": "ztaylor",
         "url": "https://github.com/zach-source"
       },
-      "source": "./plugins/and-then",
+      "source": "./claude/plugins/and-then",
       "category": "productivity"
+    },
+    {
+      "name": "context-injection",
+      "description": "Injects project docs, working context (k8s/aws/env), library->context7 hints and cwd memory into every prompt",
+      "version": "1.0.0",
+      "author": {
+        "name": "ztaylor",
+        "url": "https://github.com/zach-source"
+      },
+      "source": "./claude/plugins/context-injection",
+      "category": "context"
+    },
+    {
+      "name": "session-hygiene",
+      "description": "Refuses prompts on a stale session whose prompt cache has lapsed, and keeps MCP server config unshadowed",
+      "version": "1.0.0",
+      "author": {
+        "name": "ztaylor",
+        "url": "https://github.com/zach-source"
+      },
+      "source": "./claude/plugins/session-hygiene",
+      "category": "productivity"
+    },
+    {
+      "name": "code-quality",
+      "description": "Runs the right formatter/linter on every file Claude writes - go, python, js/ts, rust, nix",
+      "version": "1.0.0",
+      "author": {
+        "name": "ztaylor",
+        "url": "https://github.com/zach-source"
+      },
+      "source": "./claude/plugins/code-quality",
+      "category": "quality"
+    },
+    {
+      "name": "notifications",
+      "description": "Desktop and tmux notifications when Claude stops, needs input or finishes a subagent, plus a claude-mon edit stream",
+      "version": "1.0.0",
+      "author": {
+        "name": "ztaylor",
+        "url": "https://github.com/zach-source"
+      },
+      "source": "./claude/plugins/notifications",
+      "category": "notifications"
+    },
+    {
+      "name": "vector-memory",
+      "description": "Vectorizes transcripts into qdrant before compaction and retrieves relevant prior context on tool use",
+      "version": "1.0.0",
+      "author": {
+        "name": "ztaylor",
+        "url": "https://github.com/zach-source"
+      },
+      "source": "./claude/plugins/vector-memory",
+      "category": "memory"
+    },
+    {
+      "name": "subagents",
+      "description": "80 specialized subagents - language experts, infra, review, security and domain specialists",
+      "version": "1.0.0",
+      "author": {
+        "name": "ztaylor",
+        "url": "https://github.com/zach-source"
+      },
+      "source": "./claude/plugins/subagents",
+      "category": "agents"
+    },
+    {
+      "name": "slash-commands",
+      "description": "18 slash commands for commits, PR review, task workflows, working context and hook authoring",
+      "version": "1.0.0",
+      "author": {
+        "name": "ztaylor",
+        "url": "https://github.com/zach-source"
+      },
+      "source": "./claude/plugins/slash-commands",
+      "category": "productivity"
+    },
+    {
+      "name": "workflow-skills",
+      "description": "Skills for AWS role assumption (granted), 1Password CLI, and driving herdr agent loops",
+      "version": "1.0.0",
+      "author": {
+        "name": "ztaylor",
+        "url": "https://github.com/zach-source"
+      },
+      "source": "./claude/plugins/workflow-skills",
+      "category": "workflow"
     }
   ]
 }

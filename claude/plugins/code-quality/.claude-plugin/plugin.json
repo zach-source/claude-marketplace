@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/plugin-schema.json",
+  "name": "code-quality",
+  "version": "1.0.0",
+  "description": "Runs the right formatter/linter on every file Claude writes - go, python, js/ts, rust, nix",
+  "author": {
+    "name": "ztaylor",
+    "url": "https://github.com/zach-source"
+  },
+  "repository": "https://github.com/zach-source/claude-marketplace",
+  "license": "MIT",
+  "keywords": [
+    "hooks",
+    "lint",
+    "format",
+    "gofmt",
+    "black",
+    "prettier",
+    "rustfmt",
+    "nixfmt"
+  ],
+  "hooks": "./hooks/hooks.json"
+}

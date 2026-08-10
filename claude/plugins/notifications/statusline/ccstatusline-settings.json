@@ -1,0 +1,82 @@
+{
+  "version": 3,
+  "lines": [
+    [
+      {
+        "id": "1",
+        "type": "model",
+        "color": "blue",
+        "rawValue": true
+      },
+      {
+        "id": "2",
+        "type": "separator",
+        "color": "gray"
+      },
+      {
+        "id": "3",
+        "type": "context-percentage",
+        "color": "cyan",
+        "rawValue": true
+      }
+    ],
+    [
+      {
+        "id": "4",
+        "type": "block-timer",
+        "color": "yellow"
+      },
+      {
+        "id": "5",
+        "type": "separator",
+        "color": "gray"
+      },
+      {
+        "id": "6",
+        "type": "custom-command",
+        "commandPath": "ccswitch --current",
+        "color": "magenta"
+      }
+    ],
+    [
+      {
+        "id": "7",
+        "type": "git-branch",
+        "color": "green"
+      },
+      {
+        "id": "8",
+        "type": "separator",
+        "color": "gray"
+      },
+      {
+        "id": "9",
+        "type": "git-worktree",
+        "color": "cyan"
+      },
+      {
+        "id": "10",
+        "type": "separator",
+        "color": "gray"
+      },
+      {
+        "id": "11",
+        "type": "git-changes",
+        "color": "yellow"
+      }
+    ]
+  ],
+  "flexMode": "full-minus-40",
+  "compactThreshold": 60,
+  "colorLevel": 3,
+  "inheritSeparatorColors": false,
+  "globalBold": false,
+  "powerline": {
+    "enabled": false,
+    "separators": [""],
+    "separatorInvertBackground": [false],
+    "startCaps": [],
+    "endCaps": [],
+    "autoAlign": false
+  }
+}

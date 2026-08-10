@@ -1,0 +1,52 @@
+{
+  "Notification": [
+    {
+      "matcher": "",
+      "hooks": [
+        {
+          "type": "command",
+          "timeout": 2,
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify-hook.sh notification"
+        }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "matcher": "",
+      "hooks": [
+        {
+          "type": "command",
+          "timeout": 2,
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify-hook.sh stop"
+        }
+      ]
+    }
+  ],
+  "SubagentStop": [
+    {
+      "matcher": "",
+      "hooks": [
+        {
+          "type": "command",
+          "timeout": 5,
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/subagent-stop-hook.sh",
+          "description": "Notify when agents complete (tmux + desktop)"
+        }
+      ]
+    }
+  ],
+  "PostToolUse": [
+    {
+      "matcher": "Write|Edit|MultiEdit",
+      "hooks": [
+        {
+          "type": "command",
+          "timeout": 2,
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/claude-mon-hook.sh",
+          "description": "Send edits to the claude-mon TUI and daemon"
+        }
+      ]
+    }
+  ]
+}

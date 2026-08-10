@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/plugin-schema.json",
+  "name": "slash-commands",
+  "version": "1.0.0",
+  "description": "18 slash commands for commits, PR review, task workflows, working context and hook authoring",
+  "author": {
+    "name": "ztaylor",
+    "url": "https://github.com/zach-source"
+  },
+  "repository": "https://github.com/zach-source/claude-marketplace",
+  "license": "MIT",
+  "keywords": [
+    "commands",
+    "git",
+    "review",
+    "tasks"
+  ]
+}

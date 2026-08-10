@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/plugin-schema.json",
+  "name": "subagents",
+  "version": "1.0.0",
+  "description": "80 specialized subagents - language experts, infra, review, security and domain specialists",
+  "author": {
+    "name": "ztaylor",
+    "url": "https://github.com/zach-source"
+  },
+  "repository": "https://github.com/zach-source/claude-marketplace",
+  "license": "MIT",
+  "keywords": [
+    "agents",
+    "subagents",
+    "experts"
+  ]
+}

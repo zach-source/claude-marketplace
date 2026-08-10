@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/plugin-schema.json",
+  "name": "context-injection",
+  "version": "1.0.0",
+  "description": "Injects project docs, working context (k8s/aws/env), library->context7 hints and cwd memory into every prompt",
+  "author": {
+    "name": "ztaylor",
+    "url": "https://github.com/zach-source"
+  },
+  "repository": "https://github.com/zach-source/claude-marketplace",
+  "license": "MIT",
+  "keywords": [
+    "hooks",
+    "context",
+    "prompt",
+    "kubernetes",
+    "aws"
+  ],
+  "hooks": "./hooks/hooks.json"
+}

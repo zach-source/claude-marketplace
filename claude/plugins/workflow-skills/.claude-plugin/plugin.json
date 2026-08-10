@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/plugin-schema.json",
+  "name": "workflow-skills",
+  "version": "1.0.0",
+  "description": "Skills for AWS role assumption (granted), 1Password CLI, and driving herdr agent loops",
+  "author": {
+    "name": "ztaylor",
+    "url": "https://github.com/zach-source"
+  },
+  "repository": "https://github.com/zach-source/claude-marketplace",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "aws",
+    "1password",
+    "herdr"
+  ]
+}
