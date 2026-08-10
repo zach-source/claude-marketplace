@@ -67,4 +67,37 @@ check "disabled by env" 0 \
   "$(echo "{\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"$BAD\"}}" \
      | CLAUDE_HOOKS_LINT_ENABLED=false bash "$HOOK" >/dev/null 2>&1; echo $?)"
 
+# --- every language branch keeps its diagnostics off stdout ----------------
+#
+# The harness parses hook stdout as JSON, so a checker's output must go to
+# stderr. `cmd 2>&1` looks like silencing but does the opposite - it merges the
+# diagnostics INTO stdout.
+#
+# Real checkers make a bad fixture here for three separate reasons: a clean file
+# means the checker never writes anything and the test passes for the wrong
+# reason; `black --check --quiet` suppresses its own output and hides the leak;
+# and rustfmt/nixfmt may not be installed at all, so the branch never runs. Stub
+# every checker instead - always failing, always chatty on BOTH streams.
+STUBS="$WORK/stubs"; mkdir -p "$STUBS"
+for c in gofmt go black flake8 prettier rustfmt nixfmt yq; do
+  cat > "$STUBS/$c" <<EOF
+#!/usr/bin/env bash
+echo "$c: complaining on stdout"
+echo "$c: complaining on stderr" >&2
+exit 1
+EOF
+  chmod +x "$STUBS/$c"
+done
+
+for ext in go py ts rs yaml nix; do
+  f="$WORK/sample.$ext"; echo "content" > "$f"
+  out=$(echo "{\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"$f\"}}" \
+        | PATH="$STUBS:$PATH" bash "$HOOK" 2>/dev/null)
+  if [[ -z "$out" ]]; then
+    echo "ok   .$ext branch keeps stdout clean"
+  else
+    echo "FAIL .$ext branch leaked to stdout: $(head -c 80 <<<"$out")"; fail=1
+  fi
+done
+
 exit $fail
