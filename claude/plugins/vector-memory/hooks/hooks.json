@@ -1,28 +1,30 @@
 {
-  "PreCompact": [
-    {
-      "matcher": "",
-      "hooks": [
-        {
-          "type": "command",
-          "timeout": 60,
-          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/precompact_vectorize.sh",
-          "description": "Vectorize the transcript before it is compacted away"
-        }
-      ]
-    }
-  ],
-  "PreToolUse": [
-    {
-      "matcher": "Task|Write|Edit|MultiEdit|Read|Grep|Glob",
-      "hooks": [
-        {
-          "type": "command",
-          "timeout": 10,
-          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/retrieve_vectors.sh",
-          "description": "Retrieve relevant prior-session context from qdrant"
-        }
-      ]
-    }
-  ]
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 60,
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/precompact_vectorize.sh",
+            "description": "Vectorize the transcript before it is compacted away"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Task|Write|Edit|MultiEdit|Read|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 10,
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/retrieve_vectors.sh",
+            "description": "Retrieve relevant prior-session context from qdrant"
+          }
+        ]
+      }
+    ]
+  }
 }
