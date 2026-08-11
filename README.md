@@ -58,8 +58,15 @@ with the reason for each. See [pi/README.md](./pi/README.md).
 
 ```bash
 /plugin marketplace add zach-source/claude-marketplace
-/plugin install code-quality@claude-marketplace
+/plugin install code-quality@agent-marketplace
 ```
+
+The repo is `claude-marketplace`; the marketplace it declares is **`agent-marketplace`**.
+That is not a slip. Claude Code rejects any marketplace whose name starts with `claude-`
+as impersonating an official Anthropic marketplace, and it does so *silently* — the entry
+in `extraKnownMarketplaces` is simply never registered, `claude plugin list` shows nothing,
+and every hook the plugins declare quietly does not run. `claude plugin validate <path>`
+is what surfaces it. Do not rename it back.
 
 Or point at a local checkout in `.claude/plugins.json`:
 

@@ -1,5 +1,5 @@
 {
-  "name": "claude-marketplace-codex",
+  "name": "agent-marketplace-codex",
   "interface": {
     "displayName": "Codex Plugins (zach-source)"
   },
