@@ -40,6 +40,16 @@
                 pkgs.bash
                 pkgs.jq
                 pkgs.python3
+              ]
+              # test-project-config.sh drives the real checkers against fixture
+              # projects. It skips any checker it cannot find, so without these
+              # it would pass by doing nothing.
+              ++ [
+                pkgs.black
+                pkgs.python3Packages.flake8
+                pkgs.nixfmt
+                pkgs.prettier
+                pkgs.rustfmt
               ];
             }
             ''
@@ -50,6 +60,7 @@
               bash claude/test-hook-contract.sh
               bash claude/test-bin-pinning.sh
               bash claude/plugins/code-quality/test-payload-parsing.sh
+              bash claude/plugins/code-quality/test-project-config.sh
               bash claude/plugins/notifications/test-notifications.sh
               python3 claude/plugins/session-hygiene/test-session-staleness.py
 

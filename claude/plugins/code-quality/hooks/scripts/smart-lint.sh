@@ -31,6 +31,18 @@ file=$(jq -r '
 CLAUDE_HOOKS_LINT_ENABLED="${CLAUDE_HOOKS_LINT_ENABLED:-true}"
 [[ "$CLAUDE_HOOKS_LINT_ENABLED" != "true" ]] && exit 0
 
+# Absolutise before the cd below, or a relative path stops resolving.
+file="$(cd "$(dirname "$file")" && pwd)/$(basename "$file")"
+
+# Run every checker from the project root, so the ones that read their config
+# from the current directory - flake8, and prettier for .prettierignore - see the
+# project's settings instead of our defaults. Measured before this: a setup.cfg
+# raising max-line-length and a .prettierignore listing the file were both
+# ignored outright.
+project_dir="$(project_root "$file")"
+cd "$project_dir" || exit 0
+log_debug "checking $file from $project_dir"
+
 # Track errors
 declare -a ERRORS=()
 
@@ -98,7 +110,14 @@ case "$extension" in
     
   rs)
     if command_exists rustfmt && [[ -f "$file" ]]; then
-      if rustfmt --check "$file" >&2; then
+      # rustfmt does not read Cargo.toml, and standalone it assumes edition
+      # 2015 - which cannot even parse `async fn` or `dyn Trait`. Every 2018+
+      # crate therefore came back "badly formatted" when it was only unparseable.
+      # rustfmt.toml is found from the file's own path, so that part was already
+      # right; only the edition has to be handed over.
+      edition=$(sed -n 's/^[[:space:]]*edition[[:space:]]*=[[:space:]]*"\([0-9]*\)".*/\1/p' \
+        "$project_dir/Cargo.toml" 2>/dev/null | head -1)
+      if rustfmt --check ${edition:+--edition "$edition"} "$file" >&2; then
         log_success "Rust formatting OK: $file"
       else
         add_error "Rust formatting issues in $file"
@@ -119,7 +138,15 @@ case "$extension" in
     ;;
 
   nix)
-    if command_exists nixfmt && [[ -f "$file" ]]; then
+    # A project that declares its own formatter has already answered this
+    # question. treefmt is usually pointed at alejandra or nixpkgs-fmt, whose
+    # output nixfmt rejects wholesale - so checking anyway means reporting a
+    # correctly formatted file as broken on every single edit. Defer instead of
+    # reformatting: running treefmt here would rewrite the file, and this hook
+    # has never written to the tree.
+    if [[ -f treefmt.toml || -f .treefmt.toml || -f treefmt.nix ]]; then
+      log_debug "project declares its own formatter (treefmt); skipping nixfmt"
+    elif command_exists nixfmt && [[ -f "$file" ]]; then
       if nixfmt --check "$file" >&2; then
         log_success "Nix formatting OK: $file"
       else

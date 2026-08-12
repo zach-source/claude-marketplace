@@ -31,6 +31,34 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# Nearest ancestor directory of $1 that looks like a project root.
+#
+# Checkers disagree about where configuration lives. black and prettier resolve
+# their config by walking up from the FILE, but flake8 reads setup.cfg/.flake8/
+# tox.ini from the CURRENT DIRECTORY, and prettier looks for .prettierignore
+# there too. A hook inherits whatever cwd the harness happened to have, so those
+# two silently ignored the project's own settings and reported violations of our
+# defaults instead. Running every checker from here fixes that class at once.
+#
+# Nearest marker wins, not outermost: in a monorepo the sub-package's
+# package.json or pyproject.toml is the config that governs the file, which is
+# the same rule the tools themselves use.
+project_root() {
+  local dir marker
+  dir=$(cd "$(dirname "$1")" 2>/dev/null && pwd) || return 1
+  while [[ "$dir" != "/" ]]; do
+    for marker in .git flake.nix treefmt.toml .treefmt.toml package.json \
+      pyproject.toml setup.cfg .flake8 tox.ini Cargo.toml go.mod; do
+      if [[ -e "$dir/$marker" ]]; then
+        printf '%s\n' "$dir"
+        return 0
+      fi
+    done
+    dir=$(dirname "$dir")
+  done
+  dirname "$1"
+}
+
 # Binary resolution.
 #
 # A pinned deployment (nix) needs the exact store binaries; a plain checkout has
