@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/plugin-schema.json",
-  "name": "context-injection",
+  "name": "shunt",
   "version": "1.3.0",
-  "description": "Injects project docs, working context (k8s/aws/env), library->context7 hints and cwd memory into every prompt",
+  "description": "Denies whole-file reads of large files and hands them to a cheap subagent instead, so the corpus never enters the main context",
   "author": {
     "name": "ztaylor",
     "url": "https://github.com/zach-source"
@@ -11,10 +11,12 @@
   "license": "MIT",
   "keywords": [
     "hooks",
+    "skills",
     "context",
-    "prompt",
-    "kubernetes",
-    "aws"
+    "tokens",
+    "delegation",
+    "subagent"
   ],
-  "hooks": "./hooks/hooks.json"
+  "hooks": "./hooks/hooks.json",
+  "skills": "./skills/"
 }

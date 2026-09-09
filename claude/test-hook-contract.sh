@@ -102,9 +102,15 @@ while IFS= read -r manifest; do
     else
       echo "ok   $label emits valid JSON ($(jq -c 'keys | join(",")' <<<"$out" 2>/dev/null))"
     fi
-  done < <(jq -r 'to_entries[] | .key as $e | .value[]?.hooks[]? | [$e, .command] | @tsv' "$manifest")
+    # The event map lives under the "hooks" wrapper the harness requires (b090b54).
+    # Reading from the top level instead matched nothing, silently, for every
+    # plugin in the tree.
+  done < <(jq -r '.hooks | to_entries[] | .key as $e | .value[]?.hooks[]? | [$e, .command] | @tsv' "$manifest")
 done < <(find "$ROOT/claude/plugins" -name hooks.json -path '*/hooks/*' | sort)
 
 echo
 echo "$checked hook commands checked"
+# Discovering nothing is how this test spent several releases passing while
+# checking no hook at all. A tree with plugins always has hook commands.
+[[ $checked -gt 0 ]] || { echo "FAIL no hook commands discovered"; fail=1; }
 exit $fail

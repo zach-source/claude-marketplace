@@ -1,7 +1,7 @@
 {
-  "name": "session-hygiene",
+  "name": "shunt",
   "version": "1.3.0",
-  "description": "Refuses prompts on a stale session whose prompt cache has lapsed, and keeps MCP server config unshadowed",
+  "description": "Denies whole-file reads of large files and hands them to a cheap subagent instead, so the corpus never enters the main context",
   "author": {
     "name": "ztaylor",
     "url": "https://github.com/zach-source"
@@ -11,9 +11,12 @@
   "license": "MIT",
   "keywords": [
     "hooks",
-    "session",
-    "prompt-cache",
-    "mcp"
+    "skills",
+    "context",
+    "tokens",
+    "delegation",
+    "subagent"
   ],
-  "hooks": "./hooks/hooks.json"
+  "hooks": "./hooks/hooks.json",
+  "skills": "./skills/"
 }
