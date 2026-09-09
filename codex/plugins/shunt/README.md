@@ -24,7 +24,7 @@ model. Enable the feature, or set `SHUNT_GUARD_OFF=1` and take the skill as advi
 | Layer | |
 |---|---|
 | `hooks/scripts/shunt-guard.sh` | `PreToolUse` on every tool. Denies a shell read (`cat`/`head`/`bat`/`less`/`more`) of a file above `SHUNT_MIN_LINES`. |
-| `skills/shunt/SKILL.md` | Tells the agent what to do instead: `spawn_agent` with `model: "gpt-5.4-mini"`. |
+| `skills/shunt/SKILL.md` | Tells the agent what to do instead: `spawn_agent` with `fork_turns: "none"`. |
 
 The hook is the enforcement and the skill is the instruction. Neither is much use alone — a
 skill without the hook gets forgotten under load, a hook without the skill just blocks.
