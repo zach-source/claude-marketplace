@@ -6,7 +6,7 @@
   outputs =
     { self, nixpkgs }:
     let
-      version = "1.2.0";
+      version = "1.3.0";
 
       # ponytail: genAttrs instead of a flake-utils input - one line does it.
       systems = [
@@ -62,6 +62,7 @@
               bash claude/plugins/code-quality/test-payload-parsing.sh
               bash claude/plugins/code-quality/test-project-config.sh
               bash claude/plugins/notifications/test-notifications.sh
+              bash claude/plugins/shunt/test-shunt-guard.sh
               python3 claude/plugins/session-hygiene/test-session-staleness.py
 
               bash codex/test-hook-stdout-contract.sh

@@ -27,6 +27,7 @@ the two harnesses stay out of each other's way.
 | [session-hygiene](./plugins/session-hygiene) | Developer Tools | UserPromptSubmit hook |
 | [vector-memory](./plugins/vector-memory) | Productivity | PreCompact + PreToolUse hooks |
 | [workflow-skills](./plugins/workflow-skills) | Productivity | 4 skills |
+| [shunt](./plugins/shunt) | Productivity | PreToolUse hook, `shunt` skill |
 
 ## How these differ from the Claude plugins
 

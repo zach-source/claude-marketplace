@@ -38,10 +38,11 @@ standalone.
 | [subagents](./claude/plugins/subagents) | agents | 80 specialized subagents |
 | [slash-commands](./claude/plugins/slash-commands) | productivity | 18 slash commands |
 | [workflow-skills](./claude/plugins/workflow-skills) | workflow | granted, 1password, herdr, herdr-claude-loop |
+| [shunt](./claude/plugins/shunt) | context | Denies large whole-file reads, delegates them to a cheap subagent |
 
 ## Codex plugins
 
-Seven of the nine are mirrored for Codex under [`codex/plugins/`](./codex), with
+Eight of the ten are mirrored for Codex under [`codex/plugins/`](./codex), with
 their own marketplace at `.agents/plugins/marketplace.json`. `subagents` and
 `slash-commands` are not — Codex plugins have no agents or commands component.
 See [codex/README.md](./codex/README.md) for the per-plugin differences.
