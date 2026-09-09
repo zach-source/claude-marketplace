@@ -43,6 +43,9 @@ Bullets only, no prose.")
 For boilerplate, use `model: sonnet` and give it the reference file plus the target path.
 Generation is execution-tier work; reading is not.
 
+Those two tiers are defaults. If `SHUNT_MODEL` is set, pass that instead — the guard names
+it in its denial, so you do not have to check the environment yourself.
+
 ## Verify before you act on it
 
 A summary is evidence, not fact. Before you edit based on a shunted read, confirm the
@@ -59,4 +62,5 @@ spans or raise the threshold for the session:
 ```bash
 SHUNT_MIN_LINES=5000   # per-session override
 SHUNT_GUARD_OFF=1      # disable the guard entirely
+SHUNT_MODEL=...        # model for the subagent; unset = inherit
 ```

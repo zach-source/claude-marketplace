@@ -33,6 +33,7 @@ skill without the hook gets forgotten under load, a hook without the skill just 
 |---|---|---|
 | `SHUNT_MIN_LINES` | `800` | Line count above which a whole-file read is denied |
 | `SHUNT_GUARD_OFF` | unset | Set to `1` to pass everything through |
+| `SHUNT_MODEL` | unset | Model to run the subagent on. Unset inherits the harness default. The guard names it in its denial, so the skill never has to read the environment. |
 | `CLAUDE_HOOKS_BIN` | unset | Colon-separated bin dirs to resolve `jq`/`sed`/`wc` from first, for pinned (nix) deployments |
 
 ## Install

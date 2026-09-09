@@ -44,14 +44,23 @@ spawn_agent(task_name: "read_service", fork_turns: "none",
   DB connection as `file:line — method — what it does`. Bullets only, no prose.")
 ```
 
-**Leave `model` unset.** The subagent inherits yours, which is what Codex's own guidance
-asks for, and the saving here comes from *context isolation* rather than from a cheaper
-worker — the corpus lands in the subagent's window, not yours, whatever model reads it.
+**Model.** Leave it unset unless `SHUNT_MODEL` is set. The subagent then inherits yours,
+which is what Codex's own guidance asks for, and the saving here comes from *context
+isolation* rather than from a cheaper worker — the corpus lands in the subagent's window,
+not yours, whatever model reads it.
 
-If you do want a cheaper worker, `gpt-5.4` is the one lower tier that both Codex and the
-Ripple AI gateway agree exists. Do not reach for `gpt-5.4-mini`: Codex's own catalogue lists
-it, but the gateway rejects it with `400 Invalid model name`, and that surfaces as a dead
-subagent rather than a clear error.
+When `SHUNT_MODEL` is set, pass it as `model:`. You do not have to go looking: the guard
+names it in its denial, so the value reaches you at the moment you need it.
+
+```bash
+SHUNT_MODEL=gpt-5.4    # per-deployment override; unset = inherit
+```
+
+Set it to an id your *provider* serves, not merely one Codex names. `codex debug models`
+lists tiers a gateway in front of it may reject — `gpt-5.4-mini` is listed but answers
+`400 Invalid model name` on at least one gateway in production use, and a rejected id surfaces as a dead
+subagent rather than a clear error. That mismatch is why this is an environment variable
+and not a value baked into the skill.
 
 `fork_turns: "none"` sends no conversation history — right for a read, since the paths and
 the question are the whole brief. Use `"all"` only when the subtask genuinely needs to know
@@ -79,4 +88,5 @@ threshold for the session:
 ```bash
 SHUNT_MIN_LINES=5000   # per-session override
 SHUNT_GUARD_OFF=1      # disable the guard entirely
+SHUNT_MODEL=...        # model for the subagent; unset = inherit
 ```

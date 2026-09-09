@@ -80,6 +80,25 @@ for GUARD in claude/plugins/shunt/hooks/scripts/shunt-guard.sh \
   else
     echo "FAIL $HARNESS a raised SHUNT_MIN_LINES did not pass through"; fail=1
   fi
+
+  # SHUNT_MODEL only does anything if it reaches the denial text - a skill is
+  # static and cannot read the environment, so this is the whole mechanism.
+  # Assert both directions: an unconditional hint would name a model nobody set.
+  checked=$((checked + 2))
+  reason=$(read_payload "$big" | SHUNT_MODEL=cheap-1 bash "$GUARD" \
+           | jq -r '.hookSpecificOutput.permissionDecisionReason')
+  if [[ $reason == *'model "cheap-1"'* ]]; then
+    echo "ok   $HARNESS SHUNT_MODEL reaches the denial"
+  else
+    echo "FAIL $HARNESS SHUNT_MODEL missing from the denial: $reason"; fail=1
+  fi
+  reason=$(read_payload "$big" | bash "$GUARD" \
+           | jq -r '.hookSpecificOutput.permissionDecisionReason')
+  if [[ $reason != *"Run the subagent on model"* ]]; then
+    echo "ok   $HARNESS unset SHUNT_MODEL names no model"
+  else
+    echo "FAIL $HARNESS named a model with SHUNT_MODEL unset: $reason"; fail=1
+  fi
 done
 
 echo

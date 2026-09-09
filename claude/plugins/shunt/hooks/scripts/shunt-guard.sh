@@ -13,6 +13,7 @@
 #
 #   SHUNT_MIN_LINES    deny whole-file reads above this many lines (default 800)
 #   SHUNT_GUARD_OFF=1  pass everything through
+#   SHUNT_MODEL        model to run the subagent on (default: the harness's own)
 #   CLAUDE_HOOKS_BIN   colon-separated bin dirs to resolve jq/sed/wc from first
 #
 # Silence means allow: the hook contract reads an empty exit 0 as "no opinion".
@@ -35,6 +36,17 @@ min_lines=${SHUNT_MIN_LINES:-800}
 [[ $min_lines =~ ^[0-9]+$ ]] || min_lines=800
 if [[ ${SHUNT_GUARD_OFF:-0} == 1 ]]; then exit 0; fi
 
+# Which model the subagent runs on is a per-deployment choice - tiers differ by
+# harness and a gateway may not serve the one the harness names. The guard is
+# where that has to be plumbed: a skill is static text and cannot read the
+# environment, whereas this denial lands in the agent's context at exactly the
+# moment the model is chosen. Unset means "inherit", which is always valid.
+model_hint=""
+if [[ -n ${SHUNT_MODEL:-} ]]; then
+  model_hint="
+Run the subagent on model \"${SHUNT_MODEL}\"."
+fi
+
 input=$(cat)
 
 deny() {
@@ -50,7 +62,7 @@ deny() {
 
 deny_read() {
   deny "shunt: $1 is $2 lines (threshold $min_lines) — do not pull it into this context.
-Use the shunt skill: hand the read to a cheap subagent and take back only the answer.
+Use the shunt skill: hand the read to a cheap subagent and take back only the answer.${model_hint}
 If you need exact text to edit, re-read just the span: Read with offset/limit, or sed -n 'A,Bp'."
 }
 
