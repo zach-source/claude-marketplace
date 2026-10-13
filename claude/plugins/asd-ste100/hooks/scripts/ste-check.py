@@ -17,9 +17,23 @@ Two passes:
      paragraphs fail, the hook names the plugin's ste-rewriter subagent, which
      runs on Claude Haiku 5.5 at about 1/20 of the cost of an Opus rewrite.
 
-Without a Jev key, or when the prose is shorter than STE_JEV_MIN_WORDS, the hook
-runs the local rules only and reports what they find. A short edit is often a
-list fragment, and Jev gives fragments low scores that cause extra rewrites.
+When the prose is shorter than STE_JEV_MIN_WORDS, the hook runs the local rules
+only. A short edit is often a list fragment, and Jev gives fragments low scores
+that cause extra rewrites.
+
+Jev routes: the primary route (STE_JEV_URL + STE_JEV_KEY, usually the LiteLLM
+gateway), then TypeSafe direct (STE_JEV_DIRECT_KEY). CF-Access headers go to the
+primary route only. Each route has a circuit breaker: after a failure, the hook
+skips that route for 5 minutes, so a dead route does not cost a timeout on each
+write.
+
+Fallback judge: in a Jev outage (a route is configured but none answers), and
+for documents only, Claude Haiku 5.5 scores the paragraphs through an isolated `claude -p` (no
+settings, tools, MCP or skills, and CLAUDE_STE_DISABLE=1 so it cannot start
+this hook again). It is slower (~11-15s) and noisier than Jev, so it has its own
+pass mark. A reply that cannot be parsed, has the wrong length, or is too short
+to contain any reasoning is discarded. If the judge also fails, the hook runs
+the local rules only.
 
 Detail check (prose files only, no network): the hook compares the technical
 details in the text that the tool replaced (old_string, or the original file for
@@ -34,7 +48,9 @@ Local rules (a heuristic subset of STE, not the full standard):
   - words STE does not approve, with the approved word to use instead
 
 Environment:
-  STE_JEV_KEY            bearer key; unset = local rules only
+  STE_JEV_KEY            bearer key for the primary route
+  STE_JEV_DIRECT_KEY     TypeSafe API key for the direct route
+  STE_JEV_DIRECT_URL     default https://api.typesafe.ai/v1/systemone
   STE_JEV_URL            default https://api.typesafe.ai/v1/systemone
                          (a LiteLLM gateway serves it at <gateway>/typesafe/v1/systemone)
   STE_JEV_THRESHOLD      pass mark, default 0.4
@@ -42,13 +58,20 @@ Environment:
   STE_JEV_MIN_WORDS      minimum prose words for a Jev score, default 60
   CF_ACCESS_CLIENT_ID    sent as CF-Access-* headers when both are set, for a
   CF_ACCESS_CLIENT_SECRET   gateway behind Cloudflare Access
+  STE_JUDGE=0            no Haiku 5.5 fallback judge (local rules only)
+  STE_JUDGE_CLI          claude binary for the judge, default: claude on PATH
+  STE_JUDGE_THRESHOLD    judge pass mark, default 0.95
   CLAUDE_STE_DISABLE=1   turn the hook off
 """
 
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
+import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
@@ -71,6 +94,37 @@ MAX_DETAILS = 12
 HANDOFF_PARAGRAPHS = 3  # this many failing paragraphs -> hand off to ste-rewriter
 REWRITER = "asd-ste100:ste-rewriter"
 JEV_URL = "https://api.typesafe.ai/v1/systemone"
+JEV_BREAKER_SECONDS = 300
+JUDGE_MODEL = "claude-haiku-5-5"
+JUDGE_TIMEOUT = 20
+# Without thinking, Haiku 5.5 bunches its scores near 0.5 (a 67-token reply
+# scored a good README 0.53). Replies that short carry no reasoning, so discard.
+JUDGE_MIN_OUTPUT_TOKENS = 100
+JUDGE_RUBRIC = """\
+You grade text for ASD-STE100 Simplified Technical English (STE). Score each \
+numbered paragraph from 0 to 1.
+
+Subtract for each problem:
+- a sentence longer than 20 words (instructions) or 25 words (descriptions): -0.3
+- passive voice ("is read", "are started"): -0.2 each
+- more than one instruction in a sentence: -0.2
+- -ing verb forms used as verbs or nouns ("ensuring", "starting"): -0.2
+- complex or filler words ("utilize", "in order to", "simply", "via", "ensure", \
+"should"): -0.1 each
+- contractions ("isn't", "don't"): -0.1
+
+Ignore code, command names, flags and identifiers. Do not subtract for \
+technical words.
+
+Anchors:
+- "Open the valve. Set the pressure to 5 bar." = 1.0
+- "If the build fails, run make rollback." = 0.95
+- "The file is read by the daemon, which should simply validate it." = 0.3
+- "In order to apply changes, simply run make apply, which will build and \
+activate the new generation, ensuring that rollback is available." = 0.05
+
+Reply with only a JSON array of numbers, one per paragraph, in order.
+"""
 JEV_QUESTION = (
     "Score how well the text complies with ASD-STE100 Simplified Technical "
     "English: short sentences (max 20 words procedural, 25 descriptive), active "
@@ -173,57 +227,122 @@ def check(prose):
     return found
 
 
-def jev_score(prose):
-    """Return Jev's 0..1 STE score, or None when Jev is off or unreachable."""
+def jev_backends():
+    """Return the configured Jev routes, in order: (name, url, headers)."""
+    routes = []
     key = os.environ.get("STE_JEV_KEY")
-    if not key:
-        return None
+    if key:
+        headers = {"Authorization": f"Bearer {key}"}
+        cf_id = os.environ.get("CF_ACCESS_CLIENT_ID")
+        cf_secret = os.environ.get("CF_ACCESS_CLIENT_SECRET")
+        if cf_id and cf_secret:  # only this route: never send them to TypeSafe
+            headers["CF-Access-Client-Id"] = cf_id
+            headers["CF-Access-Client-Secret"] = cf_secret
+        routes.append(("primary", os.environ.get("STE_JEV_URL", JEV_URL), headers))
+    direct = os.environ.get("STE_JEV_DIRECT_KEY")
+    if direct:
+        url = os.environ.get("STE_JEV_DIRECT_URL", JEV_URL)
+        routes.append(("direct", url, {"Authorization": f"Bearer {direct}"}))
+    return routes
+
+
+def jev_score(prose, backend):
+    """Return Jev's 0..1 STE score from one route, or None when it fails."""
+    name, url, auth = backend
     headers = {
-        "Authorization": f"Bearer {key}",
+        **auth,
         "Content-Type": "application/json",
         # Cloudflare answers 403 "error code: 1010" to the default Python-urllib
         # User-Agent, so a gateway behind it never sees the request.
         "User-Agent": "asd-ste100-hook/1",
     }
-    cf_id = os.environ.get("CF_ACCESS_CLIENT_ID")
-    cf_secret = os.environ.get("CF_ACCESS_CLIENT_SECRET")
-    if cf_id and cf_secret:
-        headers["CF-Access-Client-Id"] = cf_id
-        headers["CF-Access-Client-Secret"] = cf_secret
     body = {
         "model": "jev-latest",
         "state": {"text": prose[:6000]},
         "questions": {"ste": {"type": "noul", "instructions": JEV_QUESTION}},
     }
-    req = urllib.request.Request(
-        os.environ.get("STE_JEV_URL", JEV_URL),
-        data=json.dumps(body).encode(),
-        headers=headers,
-    )
+    req = urllib.request.Request(url, data=json.dumps(body).encode(), headers=headers)
     timeout = float(os.environ.get("STE_JEV_TIMEOUT", "3"))
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return float(json.load(resp)["answers"]["ste"]["noul"])
-    except Exception as e:  # ponytail: any Jev failure degrades to the local rules
-        print(f"ste-check: Jev call failed, local rules only: {e}", file=sys.stderr)
+    except Exception as e:  # ponytail: any failure moves on to the next route
+        print(f"ste-check: Jev ({name}) call failed: {e}", file=sys.stderr)
         return None
 
 
-def jev_paragraphs(prose):
-    """Return [(score, paragraph)] for the prose, or None when Jev gives nothing."""
+def paragraphs(prose):
+    """Return the paragraphs to score, or [] when the prose is too short."""
     lines = (l for l in prose.splitlines() if not l.lstrip().startswith("#"))
     paras = [p.strip() for p in re.split(r"\n\s*\n", "\n".join(lines))]
     paras = [p for p in paras if len(p.split()) >= MIN_JEV_WORDS]
     paras = paras[:MAX_JEV_PARAGRAPHS]
     min_words = int(os.environ.get("STE_JEV_MIN_WORDS", "60"))
-    if sum(len(p.split()) for p in paras) < min_words:
+    return paras if sum(len(p.split()) for p in paras) >= min_words else []
+
+
+def breaker(name):
+    """Return the circuit-breaker file for one Jev route."""
+    return os.path.join(tempfile.gettempdir(), f"asd-ste100-jev-down-{name}")
+
+
+def jev_down(name):
+    """Return True when this route failed in the last JEV_BREAKER_SECONDS."""
+    try:
+        return time.time() - os.path.getmtime(breaker(name)) < JEV_BREAKER_SECONDS
+    except OSError:
+        return False
+
+
+def jev_paragraphs(paras):
+    """Return [(score, paragraph)] from the first Jev route that answers, or None."""
+    if not paras:
         return None
-    if not os.environ.get("STE_JEV_KEY"):
+    for backend in jev_backends():
+        if jev_down(backend[0]):
+            continue
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            scores = list(pool.map(lambda p: jev_score(p, backend), paras))
+        scored = [(s, p) for s, p in zip(scores, paras) if s is not None]
+        if scored:
+            return scored
+        open(breaker(backend[0]), "w").close()  # skip this route for a while
+    return None
+
+
+def judge_paragraphs(paras):
+    """Return [(score, paragraph)] from Claude Haiku 5.5, or None."""
+    if not paras or os.environ.get("STE_JUDGE") == "0":
         return None
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        scores = list(pool.map(jev_score, paras))
-    scored = [(s, p) for s, p in zip(scores, paras) if s is not None]
-    return scored or None
+    cli = os.environ.get("STE_JUDGE_CLI") or shutil.which("claude")
+    if not cli or not os.path.exists(cli):
+        return None
+    prompt = (
+        JUDGE_RUBRIC
+        + "\n"
+        + "\n\n".join(f"[{i + 1}] {' '.join(p.split())}" for i, p in enumerate(paras))
+    )
+    cmd = [cli, "-p", prompt, "--model", JUDGE_MODEL, "--effort", "low"]
+    cmd += ["--setting-sources", "", "--tools", "", "--strict-mcp-config"]
+    cmd += ["--disable-slash-commands", "--output-format", "json"]
+    env = {**os.environ, "CLAUDE_STE_DISABLE": "1"}  # no recursion into this hook
+    try:
+        out = subprocess.run(
+            cmd, capture_output=True, text=True, env=env, timeout=JUDGE_TIMEOUT
+        ).stdout
+        result = json.loads([l for l in out.splitlines() if l.startswith("{")][-1])
+        usage = result.get("modelUsage", {}).get(JUDGE_MODEL, {})
+        if usage.get("outputTokens", 0) < JUDGE_MIN_OUTPUT_TOKENS:
+            raise ValueError("reply too short to contain reasoning")
+        scores = json.loads(result["result"])
+        if len(scores) != len(paras) or not all(
+            isinstance(x, (int, float)) and 0 <= x <= 1 for x in scores
+        ):
+            raise ValueError(f"bad scores: {str(scores)[:80]}")
+    except Exception as e:  # ponytail: any judge failure degrades to local rules
+        print(f"ste-check: Haiku judge failed, local rules only: {e}", file=sys.stderr)
+        return None
+    return [(float(x), p) for x, p in zip(scores, paras)]
 
 
 def details(text):
@@ -264,7 +383,7 @@ def removed_message(name, lost):
     )
 
 
-def report(path, scored, threshold, found):
+def report(path, scored, threshold, found, judge="Jev"):
     """Decide what to tell Claude. Return None when the text passes."""
     name = os.path.basename(path)
     score = sum(s for s, _ in scored) / len(scored) if scored else None
@@ -280,7 +399,7 @@ def report(path, scored, threshold, found):
     else:
         failing = sorted((s, p) for s, p in scored if s < threshold)
         head = (
-            f"ASD-STE100: Jev scored the text you wrote in {name} {score:.2f}, "
+            f"ASD-STE100: {judge} scored the text you wrote in {name} {score:.2f}, "
             f"the mean of {len(scored)} paragraph(s) (pass mark {threshold:.2f})."
         )
         if len(failing) >= HANDOFF_PARAGRAPHS:
@@ -317,8 +436,18 @@ def main():
     msgs = []
     prose = prose_of(path, written_text(tool_input))
     if prose.strip():
-        threshold = float(os.environ.get("STE_JEV_THRESHOLD", "0.4"))
-        msgs.append(report(path, jev_paragraphs(prose), threshold, check(prose)))
+        paras = paragraphs(prose)
+        scored = jev_paragraphs(paras)
+        judge, threshold = "Jev", float(os.environ.get("STE_JEV_THRESHOLD", "0.4"))
+        # The slow Haiku judge runs only in a Jev outage (a route is configured
+        # but none answers) and only on documents. A session with no Jev key is
+        # unconfigured, and code comments are not worth an 11s wait.
+        is_doc = os.path.splitext(path)[1].lower() in PROSE_EXT
+        if scored is None and is_doc and jev_backends():
+            scored = judge_paragraphs(paras)
+            judge = "Claude Haiku 5.5 (Jev unavailable)"
+            threshold = float(os.environ.get("STE_JUDGE_THRESHOLD", "0.95"))
+        msgs.append(report(path, scored, threshold, check(prose), judge))
     lost = removed_details(path, tool_input, event.get("tool_response") or {})
     if lost:
         msgs.append(removed_message(name, lost))

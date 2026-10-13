@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "timeout": 6,
+            "timeout": 30,
             "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/ste-check.py",
             "description": "Score written prose against ASD-STE100; ask for a full review when it fails"
           }

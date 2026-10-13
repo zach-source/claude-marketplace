@@ -51,7 +51,14 @@ def stub_jev(score):
 def run(tool_input, tool_response=None, **env):
     clean = {k: v for k, v in os.environ.items() if not k.startswith(("STE_", "CF_"))}
     # The samples are short, so turn off the minimum length unless a test sets it.
-    env = {"STE_JEV_MIN_WORDS": "0", **env}
+    # A missing judge CLI and a fresh TMPDIR (the Jev circuit breaker lives
+    # there) keep each test away from the real `claude` and from the others.
+    env = {
+        "STE_JEV_MIN_WORDS": "0",
+        "STE_JUDGE_CLI": "/nonexistent",
+        "TMPDIR": tempfile.mkdtemp(),
+        **env,
+    }
     payload = {"tool_input": tool_input, "tool_response": tool_response or {}}
     proc = subprocess.run(
         [sys.executable, str(HOOK)],
@@ -142,6 +149,136 @@ def test_many_failing_paragraphs_hand_off_to_haiku_rewriter():
     msg = context(out)
     assert 'subagent_type "asd-ste100:ste-rewriter"' in msg
     assert "/docs/guide.md" in msg and "3 paragraphs are under the pass mark" in msg
+
+
+def fake_judge(tmp, scores, out_tokens=500):
+    """Write a fake `claude` that answers like `claude -p --output-format json`."""
+    log = Path(tmp) / "judge.log"
+    cli = Path(tmp) / "claude"
+    reply = {
+        "result": json.dumps(scores),
+        "modelUsage": {"claude-haiku-5-5": {"outputTokens": out_tokens}},
+    }
+    cli.write_text(
+        "#!/bin/sh\n"
+        f'printf "%s\\n" "$CLAUDE_STE_DISABLE $*" >> {log}\n'
+        f"echo '{json.dumps(reply)}'\n"
+    )
+    cli.chmod(0o755)
+    return str(cli), log
+
+
+# A configured Jev route that does not answer: an outage.
+DEAD = {
+    "STE_JEV_KEY": "k",
+    "STE_JEV_URL": "http://127.0.0.1:9/x",
+    "STE_JEV_TIMEOUT": "1",
+}
+
+
+def test_jev_outage_uses_haiku_judge_in_isolation():
+    with tempfile.TemporaryDirectory() as d:
+        cli, log = fake_judge(d, [0.3])
+        out = run({"file_path": "a.md", "content": BAD}, STE_JUDGE_CLI=cli, **DEAD)
+        call = log.read_text()
+    msg = context(out)
+    assert "Claude Haiku 5.5 (Jev unavailable) scored" in msg and "0.30" in msg
+    assert call.startswith("1 ")  # CLAUDE_STE_DISABLE=1: no recursion
+    assert "--model claude-haiku-5-5" in call and "--tools" in call
+
+
+def test_haiku_judge_pass_is_silent():
+    with tempfile.TemporaryDirectory() as d:
+        cli, _ = fake_judge(d, [0.99])
+        out = run(
+            {"file_path": "a.md", "content": GOOD + " " + GOOD},
+            STE_JUDGE_CLI=cli,
+            **DEAD,
+        )
+        assert out == ""
+
+
+def test_short_or_malformed_judge_reply_degrades_to_local_rules():
+    with tempfile.TemporaryDirectory() as d:
+        for scores, tokens in (([0.3], 20), ([0.3, 0.4], 500), (["x"], 500)):
+            cli, _ = fake_judge(d, scores, tokens)
+            out = run({"file_path": "a.md", "content": BAD}, STE_JUDGE_CLI=cli, **DEAD)
+            assert context(out).startswith("ASD-STE100 local check"), scores
+
+
+def test_judge_can_be_turned_off():
+    with tempfile.TemporaryDirectory() as d:
+        cli, log = fake_judge(d, [0.3])
+        out = run(
+            {"file_path": "a.md", "content": BAD},
+            STE_JUDGE_CLI=cli,
+            STE_JUDGE="0",
+            **DEAD,
+        )
+        assert not log.exists()
+    assert context(out).startswith("ASD-STE100 local check")
+
+
+def test_jev_failure_opens_breaker_and_skips_jev_next_time():
+    url, seen, server = stub_jev(0.9)
+    with tempfile.TemporaryDirectory() as d:
+        cli, _ = fake_judge(d, [0.3])
+        tmp = tempfile.mkdtemp()
+        dead = {
+            "STE_JEV_KEY": "k",
+            "STE_JEV_URL": "http://127.0.0.1:9/x",
+            "STE_JEV_TIMEOUT": "1",
+        }
+        run(
+            {"file_path": "a.md", "content": BAD}, STE_JUDGE_CLI=cli, TMPDIR=tmp, **dead
+        )
+        try:
+            out = run(
+                {"file_path": "a.md", "content": BAD},
+                STE_JUDGE_CLI=cli,
+                TMPDIR=tmp,
+                STE_JEV_KEY="k",
+                STE_JEV_URL=url,
+            )
+        finally:
+            server.shutdown()
+    assert seen == []  # the breaker skipped the working Jev
+    assert "Claude Haiku 5.5 (Jev unavailable)" in context(out)
+
+
+def test_no_jev_key_means_no_judge():
+    with tempfile.TemporaryDirectory() as d:
+        cli, log = fake_judge(d, [0.3])
+        out = run({"file_path": "a.md", "content": BAD}, STE_JUDGE_CLI=cli)
+        assert not log.exists()
+    assert context(out).startswith("ASD-STE100 local check")
+
+
+def test_judge_skips_code_comments():
+    with tempfile.TemporaryDirectory() as d:
+        cli, log = fake_judge(d, [0.3])
+        code = "\n".join("# " + line for line in BAD.split(". "))
+        run({"file_path": "a.py", "content": code}, STE_JUDGE_CLI=cli, **DEAD)
+        assert not log.exists()
+
+
+def test_direct_route_answers_when_gateway_is_down_without_cf_headers():
+    url, seen, server = stub_jev(0.9)
+    try:
+        out = run(
+            {"file_path": "a.md", "content": BAD},
+            STE_JEV_DIRECT_KEY="apikey_x",
+            STE_JEV_DIRECT_URL=url,
+            CF_ACCESS_CLIENT_ID="id",
+            CF_ACCESS_CLIENT_SECRET="secret",
+            **DEAD,
+        )
+    finally:
+        server.shutdown()
+    assert out == ""  # direct Jev scored 0.9: a pass
+    headers = seen[0][0]
+    assert headers["Authorization"] == "Bearer apikey_x"
+    assert "CF-Access-Client-Secret" not in headers
 
 
 def test_unreachable_jev_degrades_to_local_rules():
