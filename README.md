@@ -33,6 +33,7 @@ standalone.
 | [context-injection](./claude/plugins/context-injection) | context | Project docs, working context (k8s/aws/env), context7 hints, cwd memory |
 | [session-hygiene](./claude/plugins/session-hygiene) | productivity | Stale prompt-cache guard, MCP config sync |
 | [code-quality](./claude/plugins/code-quality) | quality | Format/lint every file Claude writes |
+| [asd-ste100](./claude/plugins/asd-ste100) | quality | ASD-STE100 writing skill + Jev-scored prose hook |
 | [notifications](./claude/plugins/notifications) | notifications | Desktop/tmux alerts, claude-mon stream, statusline |
 | [vector-memory](./claude/plugins/vector-memory) | memory | Qdrant vectorization on precompact, retrieval on tool use |
 | [subagents](./claude/plugins/subagents) | agents | 80 specialized subagents |

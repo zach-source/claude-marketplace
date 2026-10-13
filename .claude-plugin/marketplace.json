@@ -117,6 +117,17 @@
       },
       "source": "./claude/plugins/shunt",
       "category": "context"
+    },
+    {
+      "name": "asd-ste100",
+      "description": "Keeps docs, Markdown and code comments in ASD-STE100 Simplified Technical English: a writing skill plus a two-pass hook (Jev score, then a full review)",
+      "version": "1.3.0",
+      "author": {
+        "name": "ztaylor",
+        "url": "https://github.com/zach-source"
+      },
+      "source": "./claude/plugins/asd-ste100",
+      "category": "quality"
     }
   ]
 }

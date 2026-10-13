@@ -64,6 +64,7 @@
               bash claude/plugins/notifications/test-notifications.sh
               bash claude/plugins/shunt/test-shunt-guard.sh
               python3 claude/plugins/session-hygiene/test-session-staleness.py
+              python3 claude/plugins/asd-ste100/test-ste-check.py
 
               bash codex/test-hook-stdout-contract.sh
               bash codex/test-and-then-stop-hook.sh

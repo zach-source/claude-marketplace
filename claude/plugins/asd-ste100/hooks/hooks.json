@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 6,
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/ste-check.py",
+            "description": "Score written prose against ASD-STE100; ask for a full review when it fails"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 5,
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/ste-session.py",
+            "description": "Put the ASD-STE100 writing brief in the session context"
+          }
+        ]
+      }
+    ]
+  }
+}

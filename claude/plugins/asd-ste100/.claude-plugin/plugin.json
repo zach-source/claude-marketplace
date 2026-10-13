@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/plugin-schema.json",
+  "name": "asd-ste100",
+  "version": "1.3.0",
+  "description": "Keeps docs, Markdown and code comments in ASD-STE100 Simplified Technical English: a writing skill plus a two-pass hook (Jev score, then a full review)",
+  "author": {
+    "name": "ztaylor",
+    "url": "https://github.com/zach-source"
+  },
+  "repository": "https://github.com/zach-source/claude-marketplace",
+  "license": "MIT",
+  "keywords": [
+    "hooks",
+    "skills",
+    "writing",
+    "ste100",
+    "documentation"
+  ],
+  "hooks": "./hooks/hooks.json"
+}
