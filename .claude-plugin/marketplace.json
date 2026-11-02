@@ -128,6 +128,17 @@
       },
       "source": "./claude/plugins/asd-ste100",
       "category": "quality"
+    },
+    {
+      "name": "code-review",
+      "description": "Two-axis code review (Standards and Spec) in parallel sub-agents, from mattpocock/skills",
+      "version": "1.0.0",
+      "author": {
+        "name": "Matt Pocock",
+        "url": "https://github.com/mattpocock/skills"
+      },
+      "source": "./claude/plugins/code-review",
+      "category": "development"
     }
   ]
 }
