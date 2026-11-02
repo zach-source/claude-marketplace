@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/plugin-schema.json",
+  "name": "code-review",
+  "version": "1.0.0",
+  "description": "Two-axis code review (Standards and Spec) in parallel sub-agents, from mattpocock/skills",
+  "author": {
+    "name": "Matt Pocock",
+    "url": "https://github.com/mattpocock/skills"
+  },
+  "repository": "https://github.com/zach-source/claude-marketplace",
+  "license": "MIT",
+  "keywords": ["skills", "review", "code-review"]
+}
